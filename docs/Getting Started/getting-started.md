@@ -1,10 +1,9 @@
 ---
-title: ' ITFlow: API Docs'
+title: 'ITFlow: API Docs'
+excerpt: This site holds our API reference docs
 hidden: false
 ---
-_IT documentation, ticketing and accounting system for small MSPs._
-
-[About](https://itflow.org/#about) · [Docs](https://docs.itflow.org) · [Forum](https://forum.itflow.org/) · [Report Bug](https://forum.itflow.org/t/bug) · [Request Feature](https://forum.itflow.org/t/features) · [Services](https://services.itflow.org/) · [Security](https://github.com/itflow-org/itflow/security/policy)
+_IT documentation, ticketing and accounting system for small MSPs._<br />[About](https://itflow.org/#about) · [Docs](https://docs.itflow.org) · [Forum](https://forum.itflow.org/) · [Report Bug](https://forum.itflow.org/t/bug) · [Request Feature](https://forum.itflow.org/t/features) · [Services](https://services.itflow.org/) · [Security](https://github.com/itflow-org/itflow/security/policy)
 
 ***
 
