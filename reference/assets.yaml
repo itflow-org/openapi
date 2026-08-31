@@ -448,28 +448,26 @@ paths:
         '200':
           description: |
             The request was processed. The PHP implementation returns
-            a success or failure object from delete_output.php.
+            either a successful delete payload or a logical failure payload,
+            while still using HTTP 200 OK.
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/DeleteSuccessResponse'
-                  - $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/DeleteResponse'
               examples:
                 deleted:
                   summary: Asset deleted
                   value:
                     success: 'True'
                     count: 1
-                    data:
-                      - asset_id: 123
                 deleteFailed:
                   summary: Delete failed
                   value:
                     success: 'False'
                     message: >-
-                      Auth success but delete query failed, ensure the asset ID
-                      is valid and belongs to the authenticated client.
+                      Auth success but delete query failed. Ensure ALL required
+                      variables are provided and database schema is up-to-date.
+                      Most likely cause: asset/client/company ID mismatch.
         '401':
           description: Authentication failed.
           content:
@@ -972,34 +970,30 @@ components:
             The asset must belong to the authenticated client's allowed
             asset scope.
           example: 123
-    DeleteSuccessResponse:
+    DeleteResponse:
       type: object
       required:
         - success
-        - count
-        - data
       properties:
         success:
           type: string
           enum:
             - 'True'
+            - 'False'
           example: 'True'
         count:
           type: integer
-          description: Number of rows affected by the delete.
+          description: Number of rows affected by the delete when the operation succeeds.
           example: 1
-        data:
-          type: array
-          items:
-            type: object
-            required:
-              - asset_id
-            properties:
-              asset_id:
-                type: integer
-                format: int64
-                description: ID of the asset that was deleted.
-                example: 123
+        message:
+          type: string
+          description: >-
+            Logical failure message returned by the endpoint when the delete did
+            not proceed.
+          example: >-
+            Auth success but delete query failed. Ensure ALL required variables
+            are provided and database schema is up-to-date. Most likely cause:
+            asset/client/company ID mismatch.
     ErrorResponse:
       type: object
       required:
