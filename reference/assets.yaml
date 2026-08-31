@@ -422,6 +422,95 @@ paths:
               example:
                 success: 'False'
                 message: Can only send POST requests to this endpoint.
+  /assets/delete.php:
+    post:
+      tags:
+        - Assets
+      summary: Delete an asset
+      description: |
+        Deletes an existing asset for the authenticated client.
+
+        Requires asset_id. The asset and its associated interfaces are
+        removed when the delete succeeds.
+      operationId: deleteAsset
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAssetRequest'
+            example:
+              client_id: 1
+              asset_id: 123
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from delete_output.php.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DeleteSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                deleted:
+                  summary: Asset deleted
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - asset_id: 123
+                deleteFailed:
+                  summary: Delete failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but delete query failed, ensure the asset ID
+                      is valid and belongs to the authenticated client.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to delete
+            assets or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -856,6 +945,60 @@ components:
                 type: integer
                 format: int64
                 description: ID of the asset that was updated.
+                example: 123
+    DeleteAssetRequest:
+      type: object
+      required:
+        - client_id
+        - asset_id
+      properties:
+        client_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            ID of the client the asset belongs to.
+
+            The authenticated API user's client permissions are checked
+            before the asset is deleted.
+          example: 1
+        asset_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            ID of the asset to delete.
+
+            The asset must belong to the authenticated client's allowed
+            asset scope.
+          example: 123
+    DeleteSuccessResponse:
+      type: object
+      required:
+        - success
+        - count
+        - data
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+          example: 'True'
+        count:
+          type: integer
+          description: Number of rows affected by the delete.
+          example: 1
+        data:
+          type: array
+          items:
+            type: object
+            required:
+              - asset_id
+            properties:
+              asset_id:
+                type: integer
+                format: int64
+                description: ID of the asset that was deleted.
                 example: 123
     ErrorResponse:
       type: object
