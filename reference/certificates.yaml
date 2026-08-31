@@ -1,0 +1,313 @@
+openapi: 3.0.3
+info:
+  title: API for Certificates
+  description: |
+    API for Certificates
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create operations.
+    API responses use a success field containing the string "True" or "False".
+  version: '1.0'
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Certificates
+    description: Certificate records and certificate retrieval operations.
+security:
+  - ApiKeyAuth: []
+paths:
+  /certificates/read.php:
+    get:
+      tags:
+        - Certificates
+      summary: Read certificate records
+      description: >-
+        Returns certificate records scoped to the authenticated API key's client
+        access.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - name: certificate_id
+          in: query
+          description: Fetch a certificate by its numeric ID.
+          schema:
+            type: integer
+            minimum: 1
+        - name: certificate_name
+          in: query
+          description: Fetch certificates by exact name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Certificate read result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateReadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /certificates/create.php:
+    post:
+      tags:
+        - Certificates
+      summary: Create a certificate record
+      description: Creates a new certificate entry using the authenticated client scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CertificateCreateRequest'
+      responses:
+        '200':
+          description: Certificate create result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Maximum number of rows to return.
+      schema:
+        type: integer
+        minimum: 1
+        default: 50
+    offset:
+      name: offset
+      in: query
+      description: Number of rows to skip before returning results.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    BadRequest:
+      description: The request is malformed or required fields are missing.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Unauthorized:
+      description: Invalid or expired API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Forbidden:
+      description: >-
+        The API key is valid but the request is not permitted for this client
+        scope or module.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    NotFound:
+      description: The requested resource could not be found for the current API key scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    MethodNotAllowed:
+      description: The HTTP method is not allowed for this endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    InternalServerError:
+      description: An unexpected internal server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+  schemas:
+    ApiErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    CertificateRecord:
+      type: object
+      properties:
+        certificate_id:
+          type: integer
+          example: 42
+        certificate_name:
+          type: string
+          example: example.com wildcard cert
+        certificate_description:
+          type: string
+          nullable: true
+          example: Primary production certificate
+        certificate_domain:
+          type: string
+          nullable: true
+          example: example.com
+        certificate_issued_by:
+          type: string
+          example: Let's Encrypt
+        certificate_expire:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+        certificate_public_key:
+          type: string
+          nullable: true
+          example: '-----BEGIN CERTIFICATE-----'
+        certificate_notes:
+          type: string
+          nullable: true
+          example: This is the development server
+        certificate_favorite:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        certificate_created_at:
+          type: string
+          format: date-time
+          example: '2026-08-01T12:00:00Z'
+        certificate_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-08-15T09:30:00Z'
+        certificate_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        certificate_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        certificate_domain_id:
+          type: integer
+          example: 7
+        certificate_client_id:
+          type: integer
+          example: 10
+    CertificateReadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CertificateRecord'
+    CertificateCreateRequest:
+      type: object
+      required:
+        - certificate_name
+        - certificate_domain
+      properties:
+        certificate_name:
+          type: string
+          example: example.com wildcard cert
+        certificate_description:
+          type: string
+          nullable: true
+          example: Primary production certificate
+        certificate_domain:
+          type: string
+          example: example.com
+        certificate_issued_by:
+          type: string
+          nullable: true
+          example: Let's Encrypt
+        certificate_expire:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+        certificate_public_key:
+          type: string
+          nullable: true
+          example: '-----BEGIN CERTIFICATE-----'
+        certificate_notes:
+          type: string
+          nullable: true
+          example: This is the development server
+        certificate_domain_id:
+          type: integer
+          default: 0
+          example: 7
+    CertificateCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 42
