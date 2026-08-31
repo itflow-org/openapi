@@ -7,11 +7,11 @@ hidden: false
 
 ***
 
-This site contains reference documentation for the ITFlow API.
+This site contains reference documentation for the ITFlow API. Every ITFlow installation has an API accessible at: `itflow.example.com/api/`. API keys can be generated in Admin Settings > API.
 
   <Card title="API Reference" href="/reference" icon="fa-duotone fa-code-simple">Explore endpoints and build your integration</Card>
 
-Each ITFlow has an API accessible at: `itflow.example.com/api/`. API keys can be generated in Admin Settings > API.
+**"Try It!"**
 
 Each endpoint contains a "Try It" button to run the request against the development ITFlow instance. The API key is `develop`.
 
