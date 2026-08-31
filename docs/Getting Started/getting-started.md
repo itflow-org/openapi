@@ -1,8 +1,8 @@
 ---
 title: Welcome to ITFlow API Docs
-excerpt: API Reference docs live here
+excerpt: This site holds our API Reference docs
 hidden: false
 ---
   <Card title="API Reference" href="#" icon="fa-duotone fa-code-simple">Explore endpoints and build your integration</Card>
 
-Looking for regular documentation?  See [docs.itflow.org](https://docs.itflow.org).
+Not a developer, or looking for general ITFlow documentation instead?  See [docs.itflow.org](https://docs.itflow.org).
