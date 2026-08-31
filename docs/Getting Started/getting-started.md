@@ -12,7 +12,7 @@ hidden: false
 <Callout icon="📘" theme="info">
   ### AI Warning
 
-  ITFlow generally discourages submitting AI-generated code or documentation. **AI is used here** to generate the OpenAPI specification files from the API code and database schema, with human oversight.
+  ITFlow generally discourages submitting AI-generated code or documentation. **AI is used here** to generate the OpenAPI specification files from the existing API code and database schema, with human oversight.
 
   We review the generated output, but **it may still contain inaccuracies or omissions**. Please bear this in mind when using this API reference documentation.
 </Callout>
