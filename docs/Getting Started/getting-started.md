@@ -15,7 +15,7 @@ This site contains reference documentation for the ITFlow API.<br />Every ITFlow
 
 Each endpoint contains a "Try It" button to run the request against the development ITFlow instance. The API key is `develop`.<br />
 
-<Callout icon="📘" theme="info">
+<Callout icon="⚠️" theme="info">
   ### AI & Work-In-Progress Warning
 
   ITFlow generally discourages submitting AI-generated code or documentation. **AI is used here** to generate the OpenAPI specification files from the existing API code and database schema, with human oversight.
