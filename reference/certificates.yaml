@@ -21,6 +21,17 @@ paths:
         Returns certificate records scoped to the authenticated API key's client
         access.
       parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: |
+            Optional client ID to scope the read to a specific client.
+            This is only used when the authenticated API key has access
+            to that client.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
         - name: certificate_id
           in: query
           description: Fetch a certificate by its numeric ID.
@@ -58,7 +69,7 @@ paths:
       tags:
         - Certificates
       summary: Create a certificate record
-      description: Creates a new certificate entry.
+      description: Creates a new certificate entry using the authenticated client scope.
       requestBody:
         required: true
         content:
