@@ -447,21 +447,26 @@ paths:
       responses:
         '200':
           description: |
-            The request was processed. The PHP implementation returns
-            either a successful delete payload or a logical failure payload,
-            while still using HTTP 200 OK.
+            The delete request succeeded and the asset was removed.
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/DeleteSuccessResponse'
-                  - $ref: '#/components/schemas/DeleteFailureResponse'
+                $ref: '#/components/schemas/DeleteSuccessResponse'
               examples:
                 deleted:
                   summary: Asset deleted
                   value:
                     success: 'True'
                     count: 1
+        '400':
+          description: |
+            The request was authenticated, but the delete was not completed.
+            This usually indicates a mismatched asset, client, or company ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteFailureResponse'
+              examples:
                 deleteFailed:
                   summary: Delete failed
                   value:
