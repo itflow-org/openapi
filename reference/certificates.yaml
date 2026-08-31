@@ -58,7 +58,7 @@ paths:
       tags:
         - Certificates
       summary: Create a certificate record
-      description: Creates a new certificate entry using the authenticated client scope.
+      description: Creates a new certificate entry.
       requestBody:
         required: true
         content:
