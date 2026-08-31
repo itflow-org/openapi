@@ -7,7 +7,7 @@ hidden: false
 
 ***
 
-  <Card title="API Reference" href="reference" icon="fa-duotone fa-code-simple">Explore endpoints and build your integration</Card>
+  <Card title="API Reference" href="https://itflow-api-docs.readme.io/reference" icon="fa-duotone fa-code-simple">Explore endpoints and build your integration</Card>
 
 <Callout icon="📘" theme="info">
   ### AI Warning
