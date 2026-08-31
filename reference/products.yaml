@@ -1,0 +1,245 @@
+openapi: 3.0.4
+info:
+  title: Products API
+  description: |
+    API for reading products.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions are enforced server-side.
+
+    The API uses GET for read operations and POST for create operations.
+    API responses use a success field containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server
+tags:
+  - name: Products
+    description: Product catalog operations
+security:
+  - ApiKeyAuth: []
+paths:
+  /products/read.php:
+    get:
+      tags:
+        - Products
+      summary: Read products
+      description: |
+        Retrieves products available to the authenticated API user.
+
+        If product_id is supplied, a single product is returned.
+        Otherwise, all products are returned ordered by product_id with
+        optional pagination.
+      operationId: readProducts
+      parameters:
+        - name: product_id
+          in: query
+          required: false
+          description: Retrieve a single product by its ID.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 42
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of records returned for collection queries.
+            Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: |
+            Number of records to skip for collection queries.
+            Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: |
+            Request processed successfully. The response may contain
+            one matching product or a paginated list of products.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadProductsResponse'
+              examples:
+                productFound:
+                  summary: Product found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - product_id: 42
+                        product_name: Dell PowerEdge R650
+                        product_type: product
+                        product_description: 2U rack server
+                        product_code: DELL-R650-02U
+                        product_location: Warehouse A
+                        product_price: 2499.99
+                        product_currency_code: USD
+                        product_created_at: '2026-08-31T09:15:00Z'
+                        product_updated_at: '2026-08-31T09:15:00Z'
+                        product_archived_at: null
+                        product_tax_id: 12
+                        product_category_id: 7
+                noProductsFound:
+                  summary: No matching products
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to read products.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send GET requests to this endpoint.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+      description: |
+        API key used to authenticate requests.
+        The implementation also tolerates api_key in the JSON request body.
+  schemas:
+    Product:
+      type: object
+      description: |
+        Product record returned by the API.
+
+        The read endpoint uses SELECT * FROM products, so additional
+        database columns may appear in the response depending on schema.
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 42
+        product_name:
+          type: string
+          example: Dell PowerEdge R650
+        product_type:
+          type: string
+          enum:
+            - service
+            - product
+          example: product
+        product_description:
+          type: string
+          nullable: true
+          example: 2U rack server
+        product_code:
+          type: string
+          nullable: true
+          example: DELL-R650-02U
+        product_location:
+          type: string
+          nullable: true
+          example: Warehouse A
+        product_price:
+          type: number
+          format: double
+          example: 2499.99
+        product_currency_code:
+          type: string
+          example: USD
+        product_created_at:
+          type: string
+          format: date-time
+          example: '2026-08-31T09:15:00Z'
+        product_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-08-31T09:15:00Z'
+        product_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        product_tax_id:
+          type: integer
+          format: int64
+          example: 12
+        product_category_id:
+          type: integer
+          format: int64
+          example: 7
+    ReadProductsResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+            - 'False'
+          example: 'True'
+        count:
+          type: integer
+          description: Number of records returned.
+          example: 1
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        message:
+          type: string
+          description: Error or informational message.
+          example: >-
+            No resource (for this client and company) with the specified
+            parameter(s).
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: string
+          enum:
+            - 'False'
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
