@@ -453,7 +453,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/DeleteSuccessResponse'
+                  - $ref: '#/components/schemas/DeleteFailureResponse'
               examples:
                 deleted:
                   summary: Asset deleted
@@ -970,21 +972,32 @@ components:
             The asset must belong to the authenticated client's allowed
             asset scope.
           example: 123
-    DeleteResponse:
+    DeleteSuccessResponse:
       type: object
       required:
         - success
+        - count
       properties:
         success:
           type: string
           enum:
             - 'True'
-            - 'False'
           example: 'True'
         count:
           type: integer
           description: Number of rows affected by the delete when the operation succeeds.
           example: 1
+    DeleteFailureResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: string
+          enum:
+            - 'False'
+          example: 'False'
         message:
           type: string
           description: >-
