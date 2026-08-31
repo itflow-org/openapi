@@ -29,13 +29,14 @@ paths:
         Supports several mutually exclusive lookup parameters.
         The first matching parameter in the following order is used:
 
-        1. asset_id
-        2. asset_type
-        3. asset_name
-        4. asset_serial
-        5. asset_mac
-        6. asset_uri
-        7. asset_uri_2
+        1. client_id
+        2. asset_id
+        3. asset_type
+        4. asset_name
+        5. asset_serial
+        6. asset_mac
+        7. asset_uri
+        8. asset_uri_2
 
         If none of these parameters are supplied, the endpoint returns
         a paginated list of all assets accessible to the authenticated user.
@@ -43,6 +44,17 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: |
+            Optional client ID to scope the read to a specific client.
+            This is only used when the authenticated API key has access
+            to that client.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
         - name: asset_id
           in: query
           required: false
@@ -320,7 +332,7 @@ paths:
       description: |
         Updates an existing asset for the authenticated client.
 
-        Requires asset_id. Any field omitted from the request 
+        Requires asset_id. Any field omitted from the request
         is treated as the current database value.
       operationId: updateAsset
       security:
@@ -455,21 +467,22 @@ paths:
               schema:
                 oneOf:
                   - $ref: '#/components/schemas/DeleteSuccessResponse'
-                  - $ref: '#/components/schemas/DeleteFailureResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
               examples:
                 deleted:
                   summary: Asset deleted
                   value:
                     success: 'True'
                     count: 1
+                    data:
+                      - asset_id: 123
                 deleteFailed:
                   summary: Delete failed
                   value:
                     success: 'False'
                     message: >-
-                      Auth success but delete query failed. Ensure ALL required
+                      Auth success but delete query failed, ensure ALL required
                       variables are provided and database schema is up-to-date.
-                      Most likely cause: asset/client/company ID mismatch.
         '401':
           description: Authentication failed.
           content:
@@ -517,11 +530,171 @@ components:
       type: apiKey
       in: query
       name: api_key
-      description: |
-        API key used to authenticate requests.
-        The implementation also tolerates api_key in the JSON request body.
-        Use key 'develop' for the development server.
   schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 123
+    UpdateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              asset_id:
+                type: integer
+                example: 123
+    DeleteSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              asset_id:
+                type: integer
+                example: 123
+    AssetRecord:
+      type: object
+      properties:
+        asset_id:
+          type: integer
+          example: 123
+        asset_name:
+          type: string
+          example: Server01
+        asset_description:
+          type: string
+          nullable: true
+          example: Production server
+        asset_type:
+          type: string
+          example: Server
+        asset_make:
+          type: string
+          example: Dell
+        asset_model:
+          type: string
+          example: PowerEdge R650
+        asset_serial:
+          type: string
+          example: ABC123456
+        asset_os:
+          type: string
+          example: Ubuntu 24.04
+        asset_ip:
+          type: string
+          example: 192.168.1.10
+        asset_mac:
+          type: string
+          example: '00:11:22:33:44:55'
+        asset_uri:
+          type: string
+          nullable: true
+          example: https://server01.example.com
+        asset_uri_2:
+          type: string
+          nullable: true
+          example: ''
+        asset_status:
+          type: string
+          example: Active
+        asset_purchase_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-15'
+        asset_warranty_expire:
+          type: string
+          format: date
+          nullable: true
+          example: '2029-01-15'
+        asset_install_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-20'
+        asset_notes:
+          type: string
+          nullable: true
+          example: Production server
+        asset_vendor_id:
+          type: integer
+          example: 10
+        asset_location_id:
+          type: integer
+          example: 5
+        asset_contact_id:
+          type: integer
+          example: 25
+        asset_network_id:
+          type: integer
+          example: 3
+        asset_client_id:
+          type: integer
+          example: 1
     CreateAssetRequest:
       type: object
       required:
@@ -530,117 +703,76 @@ components:
       properties:
         client_id:
           type: integer
-          format: int64
-          minimum: 1
-          description: |
-            ID of the client the asset belongs to.
-
-            The authenticated API user's client permissions are checked
-            before the asset is created.
           example: 1
         asset_name:
           type: string
-          description: Name of the asset.
-          minLength: 1
           example: Server01
         asset_description:
           type: string
-          description: Description of the asset.
+          nullable: true
           example: Production server
         asset_type:
           type: string
-          description: Type of asset.
           example: Server
         asset_make:
           type: string
-          description: Manufacturer of the asset.
           example: Dell
         asset_model:
           type: string
-          description: Model of the asset.
           example: PowerEdge R650
         asset_serial:
           type: string
-          description: Serial number of the asset.
           example: ABC123456
         asset_os:
           type: string
-          description: Operating system installed on the asset.
           example: Ubuntu 24.04
         asset_ip:
           type: string
-          description: |
-            IP address for the asset's primary interface.
           example: 192.168.1.10
         asset_mac:
           type: string
-          description: |
-            MAC address for the asset's primary interface.
           example: '00:11:22:33:44:55'
         asset_uri:
           type: string
-          description: URI associated with the asset.
+          nullable: true
           example: https://server01.example.com
         asset_uri_2:
           type: string
-          description: |
-            Secondary URI. This field is parsed by the model but is not
-            currently included in the INSERT statement shown in create.php.
+          nullable: true
           example: ''
         asset_status:
           type: string
-          description: Status of the asset.
           example: Active
         asset_purchase_date:
           type: string
           format: date
           nullable: true
-          description: Date the asset was purchased.
           example: '2026-01-15'
         asset_warranty_expire:
           type: string
           format: date
           nullable: true
-          description: Warranty expiry date.
           example: '2029-01-15'
         asset_install_date:
           type: string
           format: date
           nullable: true
-          description: Date the asset was installed.
           example: '2026-01-20'
         asset_notes:
           type: string
-          description: Additional notes about the asset.
+          nullable: true
           example: Production server
         asset_vendor_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: ID of the vendor associated with the asset.
           example: 10
         asset_location_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: ID of the location associated with the asset.
           example: 5
         asset_contact_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: ID of the contact associated with the asset.
           example: 25
         asset_network_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: |
-            ID of the network assigned to the asset's primary interface.
           example: 3
     UpdateAssetRequest:
       type: object
@@ -650,302 +782,80 @@ components:
       properties:
         client_id:
           type: integer
-          format: int64
-          minimum: 1
-          description: |
-            ID of the client the asset belongs to.
           example: 1
         asset_id:
           type: integer
-          format: int64
-          minimum: 1
-          description: |
-            ID of the asset to update.
-
-            The record must belong to the authenticated client's allowed
-            asset scope.
           example: 123
         asset_name:
           type: string
-          description: Updated name of the asset.
           example: Server01
         asset_description:
           type: string
-          description: Updated description of the asset.
+          nullable: true
           example: Production server
         asset_type:
           type: string
-          description: Updated asset type.
           example: Server
         asset_make:
           type: string
-          description: Updated manufacturer.
           example: Dell
         asset_model:
           type: string
-          description: Updated model.
           example: PowerEdge R650
         asset_serial:
           type: string
-          description: Updated serial number.
           example: ABC123456
         asset_os:
           type: string
-          description: Updated operating system.
           example: Ubuntu 24.04
         asset_ip:
           type: string
-          description: |
-            Updated IP address for the asset's primary interface.
           example: 192.168.1.10
         asset_mac:
           type: string
-          description: |
-            Updated MAC address for the asset's primary interface.
           example: '00:11:22:33:44:55'
         asset_uri:
           type: string
-          description: Updated URI associated with the asset.
+          nullable: true
           example: https://server01.example.com
         asset_uri_2:
           type: string
-          description: Updated secondary URI.
+          nullable: true
           example: ''
         asset_status:
           type: string
-          description: Updated status of the asset.
           example: Active
         asset_purchase_date:
           type: string
           format: date
           nullable: true
-          description: Updated purchase date.
           example: '2026-01-15'
         asset_warranty_expire:
           type: string
           format: date
           nullable: true
-          description: Updated warranty expiry date.
           example: '2029-01-15'
         asset_install_date:
           type: string
           format: date
           nullable: true
-          description: Updated install date.
           example: '2026-01-20'
         asset_notes:
           type: string
-          description: Updated notes about the asset.
+          nullable: true
           example: Production server
         asset_vendor_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: Updated vendor ID.
           example: 10
         asset_location_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: Updated location ID.
           example: 5
         asset_contact_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: Updated contact ID.
           example: 25
         asset_network_id:
           type: integer
-          format: int64
-          minimum: 0
-          default: 0
-          description: Updated network ID for the primary interface.
           example: 3
-    Asset:
-      type: object
-      description: |
-        Asset record returned by the API.
-
-        The read endpoint uses SELECT * from assets and, in some queries,
-        joins the primary asset interface. Additional database columns may
-        therefore appear in the response.
-      properties:
-        asset_id:
-          type: integer
-          format: int64
-          example: 123
-        asset_name:
-          type: string
-          example: Server01
-        asset_description:
-          type: string
-          example: Production server
-        asset_type:
-          type: string
-          example: Server
-        asset_make:
-          type: string
-          example: Dell
-        asset_model:
-          type: string
-          example: PowerEdge R650
-        asset_serial:
-          type: string
-          example: ABC123456
-        asset_os:
-          type: string
-          example: Ubuntu 24.04
-        asset_uri:
-          type: string
-          example: https://server01.example.com
-        asset_uri_2:
-          type: string
-          example: ''
-        asset_status:
-          type: string
-          example: Active
-        asset_location_id:
-          type: integer
-          format: int64
-          example: 5
-        asset_vendor_id:
-          type: integer
-          format: int64
-          example: 10
-        asset_contact_id:
-          type: integer
-          format: int64
-          example: 25
-        asset_purchase_date:
-          type: string
-          format: date
-          nullable: true
-          example: '2026-01-15'
-        asset_warranty_expire:
-          type: string
-          format: date
-          nullable: true
-          example: '2029-01-15'
-        asset_install_date:
-          type: string
-          format: date
-          nullable: true
-          example: '2026-01-20'
-        asset_notes:
-          type: string
-          example: Production server
-        asset_client_id:
-          type: integer
-          format: int64
-          example: 1
-        interface_id:
-          type: integer
-          format: int64
-          example: 456
-        interface_name:
-          type: string
-          example: '1'
-        interface_mac:
-          type: string
-          example: '00:11:22:33:44:55'
-        interface_ip:
-          type: string
-          example: 192.168.1.10
-        interface_primary:
-          type: integer
-          example: 1
-        interface_network_id:
-          type: integer
-          format: int64
-          example: 3
-        interface_asset_id:
-          type: integer
-          format: int64
-          example: 123
-    ReadResponse:
-      type: object
-      required:
-        - success
-      properties:
-        success:
-          type: string
-          enum:
-            - 'True'
-            - 'False'
-          example: 'True'
-        count:
-          type: integer
-          description: Number of records returned.
-          example: 1
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Asset'
-        message:
-          type: string
-          description: Error or informational message.
-          example: >-
-            No resource (for this client and company) with the specified
-            parameter(s).
-    CreateSuccessResponse:
-      type: object
-      required:
-        - success
-        - count
-        - data
-      properties:
-        success:
-          type: string
-          enum:
-            - 'True'
-          example: 'True'
-        count:
-          type: string
-          example: '1'
-        data:
-          type: array
-          items:
-            type: object
-            required:
-              - insert_id
-            properties:
-              insert_id:
-                type: integer
-                format: int64
-                description: ID of the newly created asset.
-                example: 123
-    UpdateSuccessResponse:
-      type: object
-      required:
-        - success
-        - count
-        - data
-      properties:
-        success:
-          type: string
-          enum:
-            - 'True'
-          example: 'True'
-        count:
-          type: integer
-          description: Number of rows affected by the update.
-          example: 1
-        data:
-          type: array
-          items:
-            type: object
-            required:
-              - asset_id
-            properties:
-              asset_id:
-                type: integer
-                format: int64
-                description: ID of the asset that was updated.
-                example: 123
     DeleteAssetRequest:
       type: object
       required:
@@ -954,70 +864,7 @@ components:
       properties:
         client_id:
           type: integer
-          format: int64
-          minimum: 1
-          description: |
-            ID of the client the asset belongs to.
-
-            The authenticated API user's client permissions are checked
-            before the asset is deleted.
           example: 1
         asset_id:
           type: integer
-          format: int64
-          minimum: 1
-          description: |
-            ID of the asset to delete.
-
-            The asset must belong to the authenticated client's allowed
-            asset scope.
           example: 123
-    DeleteSuccessResponse:
-      type: object
-      required:
-        - success
-        - count
-      properties:
-        success:
-          type: string
-          enum:
-            - 'True'
-          example: 'True'
-        count:
-          type: integer
-          description: Number of rows affected by the delete when the operation succeeds.
-          example: 1
-    DeleteFailureResponse:
-      type: object
-      required:
-        - success
-        - message
-      properties:
-        success:
-          type: string
-          enum:
-            - 'False'
-          example: 'False'
-        message:
-          type: string
-          description: >-
-            Logical failure message returned by the endpoint when the delete did
-            not proceed.
-          example: >-
-            Auth success but delete query failed. Ensure ALL required variables
-            are provided and database schema is up-to-date. Most likely cause:
-            asset/client/company ID mismatch.
-    ErrorResponse:
-      type: object
-      required:
-        - success
-        - message
-      properties:
-        success:
-          type: string
-          enum:
-            - 'False'
-          example: 'False'
-        message:
-          type: string
-          example: Authentication failed. API key is invalid or has expired.
