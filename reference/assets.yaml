@@ -1,0 +1,873 @@
+openapi: 3.0.4
+info:
+  title: Assets API
+  description: |
+    API for reading and creating assets.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create operations.
+    API responses use a success field containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Assets
+    description: Asset management operations
+paths:
+  /assets/read.php:
+    get:
+      tags:
+        - Assets
+      summary: Read assets
+      description: |
+        Retrieves assets accessible to the authenticated API user.
+
+        Supports several mutually exclusive lookup parameters.
+        The first matching parameter in the following order is used:
+
+        1. asset_id
+        2. asset_type
+        3. asset_name
+        4. asset_serial
+        5. asset_mac
+        6. asset_uri
+        7. asset_uri_2
+
+        If none of these parameters are supplied, the endpoint returns
+        a paginated list of all assets accessible to the authenticated user.
+      operationId: readAssets
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: asset_id
+          in: query
+          required: false
+          description: Retrieve a single asset by its ID.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: asset_type
+          in: query
+          required: false
+          description: Retrieve assets matching the specified asset type.
+          schema:
+            type: string
+          example: Server
+        - name: asset_name
+          in: query
+          required: false
+          description: Retrieve assets matching the exact asset name.
+          schema:
+            type: string
+          example: Server01
+        - name: asset_serial
+          in: query
+          required: false
+          description: Retrieve assets matching the exact serial number.
+          schema:
+            type: string
+          example: ABC123456
+        - name: asset_mac
+          in: query
+          required: false
+          description: |
+            Retrieve assets by the MAC address of their primary interface.
+          schema:
+            type: string
+          example: '00:11:22:33:44:55'
+        - name: asset_uri
+          in: query
+          required: false
+          description: Retrieve assets matching the specified URI.
+          schema:
+            type: string
+          example: https://server01.example.com
+        - name: asset_uri_2
+          in: query
+          required: false
+          description: Retrieve assets matching the secondary URI.
+          schema:
+            type: string
+          example: https://server01-alt.example.com
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of records returned for collection queries.
+            Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: |
+            Number of records to skip for collection queries.
+            Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: |
+            Request processed successfully. The response may contain
+            matching resources or indicate that no resources were found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                assetsFound:
+                  summary: Assets found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - asset_id: 123
+                        asset_name: Server01
+                        asset_description: Production server
+                        asset_type: Server
+                        asset_make: Dell
+                        asset_model: PowerEdge R650
+                        asset_serial: ABC123456
+                        asset_os: Ubuntu 24.04
+                        asset_uri: https://server01.example.com
+                        asset_uri_2: ''
+                        asset_status: Active
+                        asset_location_id: 5
+                        asset_vendor_id: 10
+                        asset_contact_id: 25
+                        asset_purchase_date: '2026-01-15'
+                        asset_warranty_expire: '2029-01-15'
+                        asset_install_date: '2026-01-20'
+                        asset_notes: Production server
+                        asset_client_id: 1
+                        interface_id: 456
+                        interface_name: '1'
+                        interface_mac: '00:11:22:33:44:55'
+                        interface_ip: 192.168.1.10
+                        interface_primary: 1
+                        interface_network_id: 3
+                        interface_asset_id: 123
+                noAssetsFound:
+                  summary: No matching assets
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to read assets
+            or does not have access to the relevant client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                resourceDenied:
+                  summary: Resource not mapped
+                  value:
+                    success: 'False'
+                    message: This API resource is not mapped to a permission module.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /assets/create.php:
+    post:
+      tags:
+        - Assets
+      summary: Create an asset
+      description: |
+        Creates a new asset for a client.
+
+        Also creates a primary interface for the asset using
+        asset_ip, asset_mac and asset_network_id.
+      operationId: createAsset
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssetRequest'
+            example:
+              client_id: 1
+              asset_name: Server01
+              asset_description: Production server
+              asset_type: Server
+              asset_make: Dell
+              asset_model: PowerEdge R650
+              asset_serial: ABC123456
+              asset_os: Ubuntu 24.04
+              asset_ip: 192.168.1.10
+              asset_mac: '00:11:22:33:44:55'
+              asset_uri: https://server01.example.com
+              asset_uri_2: ''
+              asset_status: Active
+              asset_purchase_date: '2026-01-15'
+              asset_warranty_expire: '2029-01-15'
+              asset_install_date: '2026-01-20'
+              asset_notes: Production server
+              asset_vendor_id: 10
+              asset_location_id: 5
+              asset_contact_id: 25
+              asset_network_id: 3
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from create_output.php.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                created:
+                  summary: Asset created
+                  value:
+                    success: 'True'
+                    count: '1'
+                    data:
+                      - insert_id: 123
+                insertFailed:
+                  summary: Insert failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but insert query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date. Turn on
+                      error logging and look for 'undefined index'.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to create
+            assets or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /assets/update.php:
+    post:
+      tags:
+        - Assets
+      summary: Update an asset
+      description: |
+        Updates an existing asset for the authenticated client.
+
+        Requires asset_id. Any field omitted from the request 
+        is treated as the current database value.
+      operationId: updateAsset
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssetRequest'
+            example:
+              client_id: 1
+              asset_id: 123
+              asset_name: Server01
+              asset_description: Production server
+              asset_type: Server
+              asset_make: Dell
+              asset_model: PowerEdge R650
+              asset_serial: ABC123456
+              asset_os: Ubuntu 24.04
+              asset_ip: 192.168.1.10
+              asset_mac: '00:11:22:33:44:55'
+              asset_uri: https://server01.example.com
+              asset_uri_2: ''
+              asset_status: Active
+              asset_purchase_date: '2026-01-15'
+              asset_warranty_expire: '2029-01-15'
+              asset_install_date: '2026-01-20'
+              asset_notes: Production server
+              asset_vendor_id: 10
+              asset_location_id: 5
+              asset_contact_id: 25
+              asset_network_id: 3
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from update_output.php.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                updated:
+                  summary: Asset updated
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - asset_id: 123
+                updateFailed:
+                  summary: Update failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to update
+            assets or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+      description: |
+        API key used to authenticate requests.
+        The implementation also tolerates api_key in the JSON request body.
+        Use key 'develop' for the development server.
+  schemas:
+    CreateAssetRequest:
+      type: object
+      required:
+        - client_id
+        - asset_name
+      properties:
+        client_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            ID of the client the asset belongs to.
+
+            The authenticated API user's client permissions are checked
+            before the asset is created.
+          example: 1
+        asset_name:
+          type: string
+          description: Name of the asset.
+          minLength: 1
+          example: Server01
+        asset_description:
+          type: string
+          description: Description of the asset.
+          example: Production server
+        asset_type:
+          type: string
+          description: Type of asset.
+          example: Server
+        asset_make:
+          type: string
+          description: Manufacturer of the asset.
+          example: Dell
+        asset_model:
+          type: string
+          description: Model of the asset.
+          example: PowerEdge R650
+        asset_serial:
+          type: string
+          description: Serial number of the asset.
+          example: ABC123456
+        asset_os:
+          type: string
+          description: Operating system installed on the asset.
+          example: Ubuntu 24.04
+        asset_ip:
+          type: string
+          description: |
+            IP address for the asset's primary interface.
+          example: 192.168.1.10
+        asset_mac:
+          type: string
+          description: |
+            MAC address for the asset's primary interface.
+          example: '00:11:22:33:44:55'
+        asset_uri:
+          type: string
+          description: URI associated with the asset.
+          example: https://server01.example.com
+        asset_uri_2:
+          type: string
+          description: |
+            Secondary URI. This field is parsed by the model but is not
+            currently included in the INSERT statement shown in create.php.
+          example: ''
+        asset_status:
+          type: string
+          description: Status of the asset.
+          example: Active
+        asset_purchase_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date the asset was purchased.
+          example: '2026-01-15'
+        asset_warranty_expire:
+          type: string
+          format: date
+          nullable: true
+          description: Warranty expiry date.
+          example: '2029-01-15'
+        asset_install_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date the asset was installed.
+          example: '2026-01-20'
+        asset_notes:
+          type: string
+          description: Additional notes about the asset.
+          example: Production server
+        asset_vendor_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: ID of the vendor associated with the asset.
+          example: 10
+        asset_location_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: ID of the location associated with the asset.
+          example: 5
+        asset_contact_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: ID of the contact associated with the asset.
+          example: 25
+        asset_network_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: |
+            ID of the network assigned to the asset's primary interface.
+          example: 3
+    UpdateAssetRequest:
+      type: object
+      required:
+        - client_id
+        - asset_id
+      properties:
+        client_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            ID of the client the asset belongs to.
+          example: 1
+        asset_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            ID of the asset to update.
+
+            The record must belong to the authenticated client's allowed
+            asset scope.
+          example: 123
+        asset_name:
+          type: string
+          description: Updated name of the asset.
+          example: Server01
+        asset_description:
+          type: string
+          description: Updated description of the asset.
+          example: Production server
+        asset_type:
+          type: string
+          description: Updated asset type.
+          example: Server
+        asset_make:
+          type: string
+          description: Updated manufacturer.
+          example: Dell
+        asset_model:
+          type: string
+          description: Updated model.
+          example: PowerEdge R650
+        asset_serial:
+          type: string
+          description: Updated serial number.
+          example: ABC123456
+        asset_os:
+          type: string
+          description: Updated operating system.
+          example: Ubuntu 24.04
+        asset_ip:
+          type: string
+          description: |
+            Updated IP address for the asset's primary interface.
+          example: 192.168.1.10
+        asset_mac:
+          type: string
+          description: |
+            Updated MAC address for the asset's primary interface.
+          example: '00:11:22:33:44:55'
+        asset_uri:
+          type: string
+          description: Updated URI associated with the asset.
+          example: https://server01.example.com
+        asset_uri_2:
+          type: string
+          description: Updated secondary URI.
+          example: ''
+        asset_status:
+          type: string
+          description: Updated status of the asset.
+          example: Active
+        asset_purchase_date:
+          type: string
+          format: date
+          nullable: true
+          description: Updated purchase date.
+          example: '2026-01-15'
+        asset_warranty_expire:
+          type: string
+          format: date
+          nullable: true
+          description: Updated warranty expiry date.
+          example: '2029-01-15'
+        asset_install_date:
+          type: string
+          format: date
+          nullable: true
+          description: Updated install date.
+          example: '2026-01-20'
+        asset_notes:
+          type: string
+          description: Updated notes about the asset.
+          example: Production server
+        asset_vendor_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: Updated vendor ID.
+          example: 10
+        asset_location_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: Updated location ID.
+          example: 5
+        asset_contact_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: Updated contact ID.
+          example: 25
+        asset_network_id:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: Updated network ID for the primary interface.
+          example: 3
+    Asset:
+      type: object
+      description: |
+        Asset record returned by the API.
+
+        The read endpoint uses SELECT * from assets and, in some queries,
+        joins the primary asset interface. Additional database columns may
+        therefore appear in the response.
+      properties:
+        asset_id:
+          type: integer
+          format: int64
+          example: 123
+        asset_name:
+          type: string
+          example: Server01
+        asset_description:
+          type: string
+          example: Production server
+        asset_type:
+          type: string
+          example: Server
+        asset_make:
+          type: string
+          example: Dell
+        asset_model:
+          type: string
+          example: PowerEdge R650
+        asset_serial:
+          type: string
+          example: ABC123456
+        asset_os:
+          type: string
+          example: Ubuntu 24.04
+        asset_uri:
+          type: string
+          example: https://server01.example.com
+        asset_uri_2:
+          type: string
+          example: ''
+        asset_status:
+          type: string
+          example: Active
+        asset_location_id:
+          type: integer
+          format: int64
+          example: 5
+        asset_vendor_id:
+          type: integer
+          format: int64
+          example: 10
+        asset_contact_id:
+          type: integer
+          format: int64
+          example: 25
+        asset_purchase_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-15'
+        asset_warranty_expire:
+          type: string
+          format: date
+          nullable: true
+          example: '2029-01-15'
+        asset_install_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-20'
+        asset_notes:
+          type: string
+          example: Production server
+        asset_client_id:
+          type: integer
+          format: int64
+          example: 1
+        interface_id:
+          type: integer
+          format: int64
+          example: 456
+        interface_name:
+          type: string
+          example: '1'
+        interface_mac:
+          type: string
+          example: '00:11:22:33:44:55'
+        interface_ip:
+          type: string
+          example: 192.168.1.10
+        interface_primary:
+          type: integer
+          example: 1
+        interface_network_id:
+          type: integer
+          format: int64
+          example: 3
+        interface_asset_id:
+          type: integer
+          format: int64
+          example: 123
+    ReadResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+            - 'False'
+          example: 'True'
+        count:
+          type: integer
+          description: Number of records returned.
+          example: 1
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        message:
+          type: string
+          description: Error or informational message.
+          example: >-
+            No resource (for this client and company) with the specified
+            parameter(s).
+    CreateSuccessResponse:
+      type: object
+      required:
+        - success
+        - count
+        - data
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            required:
+              - insert_id
+            properties:
+              insert_id:
+                type: integer
+                format: int64
+                description: ID of the newly created asset.
+                example: 123
+    UpdateSuccessResponse:
+      type: object
+      required:
+        - success
+        - count
+        - data
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+          example: 'True'
+        count:
+          type: integer
+          description: Number of rows affected by the update.
+          example: 1
+        data:
+          type: array
+          items:
+            type: object
+            required:
+              - asset_id
+            properties:
+              asset_id:
+                type: integer
+                format: int64
+                description: ID of the asset that was updated.
+                example: 123
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: string
+          enum:
+            - 'False'
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
