@@ -21,6 +21,17 @@ paths:
         Returns domain records scoped to the authenticated API key's client
         access.
       parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: |
+            Optional client ID to scope the read to a specific client.
+            This is only used when the authenticated API key has access
+            to that client.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
         - name: domain_id
           in: query
           description: Fetch a domain by its numeric ID.
