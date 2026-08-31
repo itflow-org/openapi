@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: API for Domains
+  description: API for Domains
+  version: '1.0'
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Domains
+    description: Domain records and domain retrieval operations.
+security:
+  - ApiKeyAuth: []
+paths:
+  /domains/read.php:
+    get:
+      tags:
+        - Domains
+      summary: Read domain records
+      description: >-
+        Returns domain records scoped to the authenticated API key's client
+        access.
+      parameters:
+        - name: domain_id
+          in: query
+          description: Fetch a domain by its numeric ID.
+          schema:
+            type: integer
+            minimum: 1
+        - name: domain_name
+          in: query
+          description: Fetch domains by exact name.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Domain read result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainReadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Maximum number of rows to return.
+      schema:
+        type: integer
+        minimum: 1
+        default: 50
+    offset:
+      name: offset
+      in: query
+      description: Number of rows to skip before returning results.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    BadRequest:
+      description: The request is malformed or required fields are missing.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Unauthorized:
+      description: Invalid or expired API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Forbidden:
+      description: >-
+        The API key is valid but the request is not permitted for this client
+        scope or module.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    NotFound:
+      description: The requested resource could not be found for the current API key scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    MethodNotAllowed:
+      description: The HTTP method is not allowed for this endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    InternalServerError:
+      description: An unexpected internal server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+  schemas:
+    ApiErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    DomainRecord:
+      type: object
+      properties:
+        domain_id:
+          type: integer
+          example: 7
+        domain_name:
+          type: string
+          example: example.com
+        domain_description:
+          type: string
+          nullable: true
+          example: Primary website domain
+        domain_expire:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+        domain_ip:
+          type: string
+          nullable: true
+          example: 203.0.113.10
+        domain_name_servers:
+          type: string
+          nullable: true
+          example: ns1.example.com, ns2.example.com
+        domain_mail_servers:
+          type: string
+          nullable: true
+          example: mail.example.com
+        domain_txt:
+          type: string
+          nullable: true
+          example: v=spf1 include:_spf.example.com ~all
+        domain_raw_whois:
+          type: string
+          nullable: true
+          example: 'Domain Name: example.com'
+        domain_notes:
+          type: string
+          nullable: true
+          example: Registrar renewal due in 30 days
+        domain_favorite:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        domain_created_at:
+          type: string
+          format: date-time
+          example: '2026-08-01T12:00:00Z'
+        domain_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-08-15T09:30:00Z'
+        domain_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        domain_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        domain_registrar:
+          type: integer
+          example: 2
+        domain_webhost:
+          type: integer
+          example: 5
+        domain_dnshost:
+          type: integer
+          example: 3
+        domain_mailhost:
+          type: integer
+          example: 4
+        domain_client_id:
+          type: integer
+          example: 10
+    DomainReadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DomainRecord'
