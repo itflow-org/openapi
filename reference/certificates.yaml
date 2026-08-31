@@ -1,15 +1,7 @@
 openapi: 3.0.3
 info:
-  title: Certificates API
-  description: |
-    API for Certificates
-
-    Authentication is performed using an API key associated with an
-    active user. The user's RBAC permissions and client access are
-    enforced server-side.
-
-    The API uses GET for read operations and POST for create operations.
-    API responses use a success field containing the string "True" or "False".
+  title: API for Certificates
+  description: API for Certificates
   version: '1.0'
 servers:
   - url: https://develop.dev.itflow.org/api/v1
@@ -29,8 +21,6 @@ paths:
         Returns certificate records scoped to the authenticated API key's client
         access.
       parameters:
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/offset'
         - name: certificate_id
           in: query
           description: Fetch a certificate by its numeric ID.
@@ -42,6 +32,8 @@ paths:
           description: Fetch certificates by exact name.
           schema:
             type: string
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
       responses:
         '200':
           description: Certificate read result.
@@ -204,7 +196,7 @@ components:
         certificate_notes:
           type: string
           nullable: true
-          example: This is the development server
+          example: Renewal reminder set for 30 days before expiry
         certificate_favorite:
           type: integer
           enum:
@@ -256,9 +248,13 @@ components:
     CertificateCreateRequest:
       type: object
       required:
+        - client_id
         - certificate_name
         - certificate_domain
       properties:
+        client_id:
+          type: integer
+          example: 10
         certificate_name:
           type: string
           example: example.com wildcard cert
@@ -285,7 +281,7 @@ components:
         certificate_notes:
           type: string
           nullable: true
-          example: This is the development server
+          example: Renewal reminder set for 30 days before expiry
         certificate_domain_id:
           type: integer
           default: 0
