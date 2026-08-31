@@ -12,11 +12,9 @@ This site contains reference documentation for the ITFlow API.<br />Every ITFlow
   <Card title="API Reference" href="/reference" icon="fa-duotone fa-code-simple">Explore endpoints and build your integration</Card>
 
 
-<br />**"Try It!"**
+**"Try It!"**
 
 Each endpoint contains a "Try It" button to run the request against the development ITFlow instance. The API key is `develop`.<br />
-
-<br />
 
 <Callout icon="📘" theme="info">
   ### AI Warning
