@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: API for Certificates
+  title: Certificates API
   description: |
     API for Certificates
 
