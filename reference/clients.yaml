@@ -97,10 +97,10 @@ paths:
                         client_type: Technology
                         client_website: acme.example.com
                         client_referral: PartnerX
-                        client_rate: 120.00
+                        client_rate: 120
                         client_currency_code: USD
                         client_net_terms: 30
-                        client_tax_id_number: '12-3456789'
+                        client_tax_id_number: 12-3456789
                         client_abbreviation: ACME
                         client_notes: Primary customer
                         client_favorite: 0
@@ -175,10 +175,10 @@ paths:
               client_type: Technology
               client_website: acme.example.com
               client_referral: PartnerX
-              client_rate: 120.00
+              client_rate: 120
               client_currency_code: USD
               client_net_terms: 30
-              client_tax_id_number: '12-3456789'
+              client_tax_id_number: 12-3456789
               client_abbreviation: ACME
               client_is_lead: 0
               client_notes: Primary customer
@@ -276,10 +276,10 @@ paths:
               client_type: Technology
               client_website: acme.example.com
               client_referral: PartnerX
-              client_rate: 120.00
+              client_rate: 120
               client_currency_code: USD
               client_net_terms: 30
-              client_tax_id_number: '12-3456789'
+              client_tax_id_number: 12-3456789
               client_abbreviation: ACME
               client_is_lead: 0
               client_notes: Primary customer
@@ -632,7 +632,7 @@ components:
           type: number
           format: double
           nullable: true
-          example: 120.00
+          example: 120
         client_currency_code:
           type: string
           example: USD
@@ -642,7 +642,7 @@ components:
         client_tax_id_number:
           type: string
           nullable: true
-          example: '12-3456789'
+          example: 12-3456789
         client_abbreviation:
           type: string
           nullable: true
@@ -701,7 +701,7 @@ components:
           type: number
           format: double
           nullable: true
-          example: 120.00
+          example: 120
         client_currency_code:
           type: string
           example: USD
@@ -711,7 +711,7 @@ components:
         client_tax_id_number:
           type: string
           nullable: true
-          example: '12-3456789'
+          example: 12-3456789
         client_abbreviation:
           type: string
           nullable: true
@@ -754,7 +754,7 @@ components:
           type: number
           format: double
           nullable: true
-          example: 120.00
+          example: 120
         client_currency_code:
           type: string
           example: USD
@@ -764,7 +764,7 @@ components:
         client_tax_id_number:
           type: string
           nullable: true
-          example: '12-3456789'
+          example: 12-3456789
         client_abbreviation:
           type: string
           nullable: true
