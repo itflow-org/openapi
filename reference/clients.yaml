@@ -532,7 +532,7 @@ paths:
         - Clients
       summary: Delete a client
       description: |
-        Permanently deletes an existing client and all associated data.
+        Permanently deletes an existing client and all associated data (including payments).
 
         Requires client_id. The client must already be archived before the
         delete can succeed, and the associated records are removed as part
