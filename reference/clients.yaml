@@ -1,0 +1,798 @@
+openapi: 3.0.4
+info:
+  title: Clients API
+  description: |
+    API for reading, creating, updating, and archiving clients.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create/update/archive
+    operations. API responses use a success field containing the string
+    "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Clients
+    description: Client management operations
+paths:
+  /clients/read.php:
+    get:
+      tags:
+        - Clients
+      summary: Read clients
+      description: |
+        Retrieves clients accessible to the authenticated API user.
+
+        Supports a single exact-match lookup by client_name or a full list
+        of accessible clients with pagination. If neither parameter is
+        supplied, the endpoint returns a paginated list of all clients
+        accessible to the authenticated user.
+      operationId: readClients
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: |
+            Optional client ID to scope the read to a specific client.
+            This is only used when the authenticated API key has access
+            to that client.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: client_name
+          in: query
+          required: false
+          description: Retrieve a single client by its exact name.
+          schema:
+            type: string
+          example: Acme Corp
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of records returned for collection queries.
+            Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: |
+            Number of records to skip for collection queries.
+            Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: |
+            Request processed successfully. The response may contain
+            matching client records or indicate that no resources were found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                clientsFound:
+                  summary: Clients found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - client_id: 1
+                        client_lead: 0
+                        client_name: Acme Corp
+                        client_type: Technology
+                        client_website: acme.example.com
+                        client_referral: PartnerX
+                        client_rate: 120.00
+                        client_currency_code: USD
+                        client_net_terms: 30
+                        client_tax_id_number: '12-3456789'
+                        client_abbreviation: ACME
+                        client_notes: Primary customer
+                        client_favorite: 0
+                        client_created_at: '2026-01-15T10:30:00Z'
+                        client_updated_at: '2026-01-20T08:15:00Z'
+                        client_archived_at: null
+                        client_accessed_at: '2026-08-31T11:45:00Z'
+                noClientsFound:
+                  summary: No matching clients
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to read clients
+            or does not have access to the relevant client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                resourceDenied:
+                  summary: Resource not mapped
+                  value:
+                    success: 'False'
+                    message: This API resource is not mapped to a permission module.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clients/create.php:
+    post:
+      tags:
+        - Clients
+      summary: Create a client
+      description: |
+        Creates a new client record for a company or customer.
+
+        The endpoint requires a client name and creates the record using
+        the authenticated API user's scope and permission checks.
+      operationId: createClient
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+            example:
+              client_name: Acme Corp
+              client_type: Technology
+              client_website: acme.example.com
+              client_referral: PartnerX
+              client_rate: 120.00
+              client_currency_code: USD
+              client_net_terms: 30
+              client_tax_id_number: '12-3456789'
+              client_abbreviation: ACME
+              client_is_lead: 0
+              client_notes: Primary customer
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from create_output.php.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                created:
+                  summary: Client created
+                  value:
+                    success: 'True'
+                    count: '1'
+                    data:
+                      - insert_id: 1
+                insertFailed:
+                  summary: Insert failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but insert query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date. Turn on
+                      error logging and look for 'undefined index'.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to create
+            clients or does not have access to the target client scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /clients/update.php:
+    post:
+      tags:
+        - Clients
+      summary: Update a client
+      description: |
+        Updates an existing client for the authenticated client scope.
+
+        Requires client_id. Any field omitted from the request is treated
+        as the current database value.
+      operationId: updateClient
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClientRequest'
+            example:
+              client_id: 1
+              client_name: Acme Corp
+              client_type: Technology
+              client_website: acme.example.com
+              client_referral: PartnerX
+              client_rate: 120.00
+              client_currency_code: USD
+              client_net_terms: 30
+              client_tax_id_number: '12-3456789'
+              client_abbreviation: ACME
+              client_is_lead: 0
+              client_notes: Primary customer
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from update_output.php.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                updated:
+                  summary: Client updated
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - client_id: 1
+                updateFailed:
+                  summary: Update failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to update
+            clients or does not have access to the target client scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /clients/archive.php:
+    post:
+      tags:
+        - Clients
+      summary: Archive a client
+      description: |
+        Archives an existing client by setting client_archived_at.
+
+        Requires client_id. Any associated recurring invoices are also
+        inactivated as part of the archive workflow.
+      operationId: archiveClient
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveClientRequest'
+            example:
+              client_id: 1
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            either a successful update payload or a logical failure payload,
+            while still using HTTP 200 OK.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                archived:
+                  summary: Client archived
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - client_id: 1
+                archiveFailed:
+                  summary: Archive failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed, ensure ALL required
+                      variables are provided and database schema is up-to-date.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to archive
+            clients or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /clients/unarchive.php:
+    post:
+      tags:
+        - Clients
+      summary: Unarchive a client
+      description: |
+        Restores a previously archived client by clearing client_archived_at.
+      operationId: unarchiveClient
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnarchiveClientRequest'
+            example:
+              client_id: 1
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            either a successful update payload or a logical failure payload,
+            while still using HTTP 200 OK.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unarchived:
+                  summary: Client unarchived
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - client_id: 1
+                unarchiveFailed:
+                  summary: Unarchive failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed, ensure ALL required
+                      variables are provided and database schema is up-to-date.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to unarchive
+            clients or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 1
+    UpdateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              client_id:
+                type: integer
+                example: 1
+    ClientRecord:
+      type: object
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        client_lead:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        client_name:
+          type: string
+          example: Acme Corp
+        client_type:
+          type: string
+          nullable: true
+          example: Technology
+        client_website:
+          type: string
+          nullable: true
+          example: acme.example.com
+        client_referral:
+          type: string
+          nullable: true
+          example: PartnerX
+        client_rate:
+          type: number
+          format: double
+          nullable: true
+          example: 120.00
+        client_currency_code:
+          type: string
+          example: USD
+        client_net_terms:
+          type: integer
+          example: 30
+        client_tax_id_number:
+          type: string
+          nullable: true
+          example: '12-3456789'
+        client_abbreviation:
+          type: string
+          nullable: true
+          maxLength: 6
+          example: ACME
+        client_notes:
+          type: string
+          nullable: true
+          example: Primary customer
+        client_favorite:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        client_created_at:
+          type: string
+          format: date-time
+          example: '2026-01-15T10:30:00Z'
+        client_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-01-20T08:15:00Z'
+        client_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        client_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-08-31T11:45:00Z'
+    CreateClientRequest:
+      type: object
+      required:
+        - client_name
+      properties:
+        client_name:
+          type: string
+          example: Acme Corp
+        client_type:
+          type: string
+          nullable: true
+          example: Technology
+        client_website:
+          type: string
+          nullable: true
+          example: acme.example.com
+        client_referral:
+          type: string
+          nullable: true
+          example: PartnerX
+        client_rate:
+          type: number
+          format: double
+          nullable: true
+          example: 120.00
+        client_currency_code:
+          type: string
+          example: USD
+        client_net_terms:
+          type: integer
+          example: 30
+        client_tax_id_number:
+          type: string
+          nullable: true
+          example: '12-3456789'
+        client_abbreviation:
+          type: string
+          nullable: true
+          maxLength: 6
+          example: ACME
+        client_is_lead:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        client_notes:
+          type: string
+          nullable: true
+          example: Primary customer
+    UpdateClientRequest:
+      type: object
+      required:
+        - client_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        client_name:
+          type: string
+          example: Acme Corp
+        client_type:
+          type: string
+          nullable: true
+          example: Technology
+        client_website:
+          type: string
+          nullable: true
+          example: acme.example.com
+        client_referral:
+          type: string
+          nullable: true
+          example: PartnerX
+        client_rate:
+          type: number
+          format: double
+          nullable: true
+          example: 120.00
+        client_currency_code:
+          type: string
+          example: USD
+        client_net_terms:
+          type: integer
+          example: 30
+        client_tax_id_number:
+          type: string
+          nullable: true
+          example: '12-3456789'
+        client_abbreviation:
+          type: string
+          nullable: true
+          maxLength: 6
+          example: ACME
+        client_is_lead:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        client_notes:
+          type: string
+          nullable: true
+          example: Primary customer
+    ArchiveClientRequest:
+      type: object
+      required:
+        - client_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+    UnarchiveClientRequest:
+      type: object
+      required:
+        - client_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
