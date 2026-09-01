@@ -2,13 +2,13 @@ openapi: 3.0.4
 info:
   title: Clients API
   description: |
-    API for reading, creating, updating, and archiving clients.
+    API for reading, creating, updating, archiving, and deleting clients.
 
     Authentication is performed using an API key associated with an
     active user. The user's RBAC permissions and client access are
     enforced server-side.
 
-    The API uses GET for read operations and POST for create/update/archive
+    The API uses GET for read operations and POST for create/update/archive/delete
     operations. API responses use a success field containing the string
     "True" or "False".
   version: 1.0.0
@@ -526,6 +526,96 @@ paths:
               example:
                 success: 'False'
                 message: Can only send POST requests to this endpoint.
+  /clients/delete.php:
+    post:
+      tags:
+        - Clients
+      summary: Delete a client
+      description: |
+        Permanently deletes an existing client and all associated data.
+
+        Requires client_id. The client must already be archived before the
+        delete can succeed, and the associated records are removed as part
+        of the delete workflow.
+      operationId: deleteClient
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteClientRequest'
+            example:
+              client_id: 1
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            either a successful delete payload or a logical failure payload,
+            while still using HTTP 200 OK.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DeleteSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                deleted:
+                  summary: Client deleted
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - client_id: 1
+                deleteFailed:
+                  summary: Delete failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but delete query failed. Ensure ALL required
+                      variables are provided and database schema is up-to-date.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to delete
+            clients or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -585,6 +675,23 @@ components:
                 type: integer
                 example: 1
     UpdateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              client_id:
+                type: integer
+                example: 1
+    DeleteSuccessResponse:
       type: object
       properties:
         success:
@@ -789,6 +896,14 @@ components:
           type: integer
           example: 1
     UnarchiveClientRequest:
+      type: object
+      required:
+        - client_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+    DeleteClientRequest:
       type: object
       required:
         - client_id
