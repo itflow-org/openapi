@@ -1,19 +1,27 @@
 openapi: 3.0.4
 info:
   title: Contacts API
-  description: |
-    API for reading, creating, updating, archiving, unarchiving, and
-    deleting contacts.
+  description: >
+    API for reading, creating, updating, archiving, unarchiving, and deleting
+    contacts.
+
 
     Authentication is performed using an API key associated with an
+
     active user. The user's RBAC permissions and client access are
+
     enforced server-side.
 
+
     The API uses GET for read operations and POST for create, update,
+
     archive, unarchive, and delete operations.
+
     API responses use a success field containing the string "True" or "False".
 
+
     Notes:
+
     - contact_email must be unique per client_id; duplicate creates are
       silently declined.
     - contact_primary = 1 unsets contact_primary on the client's other
@@ -364,11 +372,11 @@ paths:
                   value:
                     success: 'False'
                     message: >-
-                      Auth success but update query failed/returned no
-                      results. Ensure ALL required variables are provided
-                      and database schema is up-to-date. Most likely
-                      cause: non-existent module ID (i.e. bad contact
-                      ID/ticket ID/etc) or no rows changed.
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
         '401':
           description: Authentication failed.
           content:
@@ -465,11 +473,11 @@ paths:
                   value:
                     success: 'False'
                     message: >-
-                      Auth success but update query failed/returned no
-                      results. Ensure ALL required variables are provided
-                      and database schema is up-to-date. Most likely
-                      cause: non-existent module ID (i.e. bad contact
-                      ID/ticket ID/etc) or no rows changed.
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
         '401':
           description: Authentication failed.
           content:
@@ -563,11 +571,11 @@ paths:
                   value:
                     success: 'False'
                     message: >-
-                      Auth success but update query failed/returned no
-                      results. Ensure ALL required variables are provided
-                      and database schema is up-to-date. Most likely
-                      cause: non-existent module ID (i.e. bad contact
-                      ID/ticket ID/etc) or no rows changed.
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
         '401':
           description: Authentication failed.
           content:
@@ -653,10 +661,9 @@ paths:
                   value:
                     success: 'False'
                     message: >-
-                      Auth success but delete query failed. Ensure ALL
-                      required variables are provided and database schema
-                      is up-to-date. Most likely cause: asset/client/company
-                      ID mismatch.
+                      Auth success but delete query failed. Ensure ALL required
+                      variables are provided and database schema is up-to-date.
+                      Most likely cause: asset/client/company ID mismatch.
         '401':
           description: Authentication failed.
           content:
@@ -830,20 +837,28 @@ components:
           example: Primary point of contact
         contact_primary:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 1
         contact_important:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 1
         contact_billing:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           nullable: true
           example: 0
         contact_technical:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           nullable: true
           example: 0
         contact_created_at:
@@ -927,7 +942,9 @@ components:
           example: Primary point of contact
         contact_primary:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           default: 0
           description: |
             Setting this to 1 unsets contact_primary on all other contacts
@@ -935,17 +952,23 @@ components:
           example: 1
         contact_important:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           default: 0
           example: 1
         contact_billing:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           default: 0
           example: 0
         contact_technical:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           default: 0
           example: 0
         contact_location_id:
@@ -1000,22 +1023,30 @@ components:
           example: Primary point of contact
         contact_primary:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           description: |
             Setting this to 1 unsets contact_primary on all other contacts
             for the same client.
           example: 1
         contact_important:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 1
         contact_billing:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 0
         contact_technical:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 0
         contact_location_id:
           type: integer
