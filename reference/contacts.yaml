@@ -1,0 +1,1058 @@
+openapi: 3.0.4
+info:
+  title: Contacts API
+  description: |
+    API for reading, creating, updating, archiving, unarchiving, and
+    deleting contacts.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create, update,
+    archive, unarchive, and delete operations.
+    API responses use a success field containing the string "True" or "False".
+
+    Notes:
+    - contact_email must be unique per client_id; duplicate creates are
+      silently declined.
+    - contact_primary = 1 unsets contact_primary on the client's other
+      contacts.
+    - contact_phone, contact_extension, and contact_mobile are stripped of
+      non-numeric characters before storage.
+    - Archive/unarchive cascade to the linked user record (contact_user_id),
+      and archive also clears contact_important, contact_billing, and
+      contact_technical.
+    - Contacts must be archived before they can be deleted.
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Contacts
+    description: Contact management operations
+paths:
+  /contacts/read.php:
+    get:
+      tags:
+        - Contacts
+      summary: Read contacts
+      description: |
+        Retrieves contacts accessible to the authenticated API user.
+
+        Supports several mutually exclusive lookup parameters.
+        The first matching parameter in the following order is used:
+
+        1. contact_id
+        2. contact_email
+        3. contact_phone_or_mobile
+
+        If none of these parameters are supplied, the endpoint returns
+        a paginated list of all contacts accessible to the authenticated
+        user.
+      operationId: readContacts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: |
+            Optional client ID to scope the read to a specific client.
+            This is only used when the authenticated API key has access
+            to that client.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: contact_id
+          in: query
+          required: false
+          description: Retrieve a single contact by its ID.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: contact_email
+          in: query
+          required: false
+          description: Retrieve contacts matching the exact email address.
+          schema:
+            type: string
+            format: email
+          example: jane.doe@example.com
+        - name: contact_phone_or_mobile
+          in: query
+          required: false
+          description: |
+            Retrieve a single contact whose contact_mobile or contact_phone
+            matches the supplied value. Only the first matching row is
+            returned.
+          schema:
+            type: string
+          example: '5551234567'
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of records returned for collection queries.
+            Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: |
+            Number of records to skip for collection queries.
+            Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: |
+            Request processed successfully. The response may contain
+            matching resources or indicate that no resources were found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                contactsFound:
+                  summary: Contacts found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - contact_id: 123
+                        contact_name: Jane Doe
+                        contact_title: Office Manager
+                        contact_email: jane.doe@example.com
+                        contact_phone_country_code: '1'
+                        contact_phone: '5551234567'
+                        contact_extension: '101'
+                        contact_mobile_country_code: '1'
+                        contact_mobile: '5559876543'
+                        contact_photo: ''
+                        contact_pin: null
+                        contact_notes: Primary point of contact
+                        contact_primary: 1
+                        contact_important: 1
+                        contact_billing: 0
+                        contact_technical: 0
+                        contact_created_at: '2026-01-15 09:00:00'
+                        contact_updated_at: null
+                        contact_archived_at: null
+                        contact_accessed_at: null
+                        contact_location_id: 5
+                        contact_vendor_id: 0
+                        contact_user_id: 0
+                        contact_department: Operations
+                        contact_client_id: 1
+                noContactsFound:
+                  summary: No matching contacts
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to read contacts
+            or does not have access to the relevant client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                resourceDenied:
+                  summary: Resource not mapped
+                  value:
+                    success: 'False'
+                    message: This API resource is not mapped to a permission module.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send GET requests to this endpoint.
+  /contacts/create.php:
+    post:
+      tags:
+        - Contacts
+      summary: Create a contact
+      description: |
+        Creates a new contact for a client.
+
+        Fails silently (no insert, insert_id remains unset) if a contact
+        with the same contact_email already exists for the given
+        contact_client_id.
+      operationId: createContact
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContactRequest'
+            example:
+              client_id: 1
+              contact_name: Jane Doe
+              contact_title: Office Manager
+              contact_department: Operations
+              contact_email: jane.doe@example.com
+              contact_phone: '5551234567'
+              contact_extension: '101'
+              contact_mobile: '5559876543'
+              contact_notes: Primary point of contact
+              contact_primary: 1
+              contact_important: 1
+              contact_billing: 0
+              contact_technical: 0
+              contact_location_id: 5
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from create_output.php.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                created:
+                  summary: Contact created
+                  value:
+                    success: 'True'
+                    count: '1'
+                    data:
+                      - insert_id: 123
+                insertFailed:
+                  summary: Insert failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but insert query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date. Turn on
+                      error logging and look for 'undefined index'.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to create
+            contacts or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /contacts/update.php:
+    post:
+      tags:
+        - Contacts
+      summary: Update a contact
+      description: |
+        Updates an existing contact for the authenticated client.
+
+        Requires contact_id. Any field omitted from the request
+        is treated as the current database value.
+      operationId: updateContact
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateContactRequest'
+            example:
+              client_id: 1
+              contact_id: 123
+              contact_name: Jane Doe
+              contact_title: Office Manager
+              contact_department: Operations
+              contact_email: jane.doe@example.com
+              contact_phone: '5551234567'
+              contact_extension: '101'
+              contact_mobile: '5559876543'
+              contact_notes: Primary point of contact
+              contact_primary: 1
+              contact_important: 1
+              contact_billing: 0
+              contact_technical: 0
+              contact_location_id: 5
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from update_output.php. Note
+            that, unlike create_output.php, no data array is returned
+            on success - only success and count.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                updated:
+                  summary: Contact updated
+                  value:
+                    success: 'True'
+                    count: 1
+                updateFailed:
+                  summary: Update failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no
+                      results. Ensure ALL required variables are provided
+                      and database schema is up-to-date. Most likely
+                      cause: non-existent module ID (i.e. bad contact
+                      ID/ticket ID/etc) or no rows changed.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to update
+            contacts or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /contacts/archive.php:
+    post:
+      tags:
+        - Contacts
+      summary: Archive a contact
+      description: |
+        Archives an existing, currently non-archived contact for the
+        authenticated client.
+
+        Requires contact_id. Only affects contacts where
+        contact_archived_at IS NULL - attempting to archive an
+        already-archived contact returns a failure response.
+
+        On success:
+        - contact_important, contact_billing, and contact_technical are
+          reset to 0.
+        - contact_archived_at is set to the current timestamp.
+        - If the contact has an associated user (contact_user_id > 0),
+          that user record is also archived (user_archived_at set to
+          the current timestamp).
+      operationId: archiveContact
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveContactRequest'
+            example:
+              client_id: 1
+              contact_id: 123
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from update_output.php. No data
+            array is returned on success - only success and count.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                archived:
+                  summary: Contact archived
+                  value:
+                    success: 'True'
+                    count: 1
+                archiveFailed:
+                  summary: Archive failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no
+                      results. Ensure ALL required variables are provided
+                      and database schema is up-to-date. Most likely
+                      cause: non-existent module ID (i.e. bad contact
+                      ID/ticket ID/etc) or no rows changed.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to archive
+            contacts or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /contacts/unarchive.php:
+    post:
+      tags:
+        - Contacts
+      summary: Unarchive a contact
+      description: |
+        Unarchives an existing, currently archived contact for the
+        authenticated client.
+
+        Requires contact_id. Only affects contacts where
+        contact_archived_at IS NOT NULL - attempting to unarchive a
+        contact that is not archived returns a failure response.
+
+        On success:
+        - contact_archived_at is cleared (set to NULL).
+        - If the contact has an associated user (contact_user_id > 0),
+          that user record is also unarchived (user_archived_at cleared).
+      operationId: unarchiveContact
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnarchiveContactRequest'
+            example:
+              client_id: 1
+              contact_id: 123
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            a success or failure object from update_output.php. No data
+            array is returned on success - only success and count.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unarchived:
+                  summary: Contact unarchived
+                  value:
+                    success: 'True'
+                    count: 1
+                unarchiveFailed:
+                  summary: Unarchive failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no
+                      results. Ensure ALL required variables are provided
+                      and database schema is up-to-date. Most likely
+                      cause: non-existent module ID (i.e. bad contact
+                      ID/ticket ID/etc) or no rows changed.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to unarchive
+            contacts or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+  /contacts/delete.php:
+    post:
+      tags:
+        - Contacts
+      summary: Delete a contact
+      description: |
+        Permanently deletes an existing contact for the authenticated
+        client. Requires contact_id. The contact must already be archived.
+      operationId: deleteContact
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteContactRequest'
+            example:
+              client_id: 1
+              contact_id: 123
+      responses:
+        '200':
+          description: |
+            The request was processed. The PHP implementation returns
+            either a successful delete payload or a logical failure payload,
+            while still using HTTP 200 OK. No data array is returned on
+            success - only success and count.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DeleteSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                deleted:
+                  summary: Contact deleted
+                  value:
+                    success: 'True'
+                    count: 1
+                deleteFailed:
+                  summary: Delete failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but delete query failed. Ensure ALL
+                      required variables are provided and database schema
+                      is up-to-date. Most likely cause: asset/client/company
+                      ID mismatch.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: |
+            The authenticated user does not have permission to delete
+            contacts or does not have access to the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                clientDenied:
+                  summary: Client access denied
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have access to
+                      the target client for this write.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send POST requests to this endpoint.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 123
+    UpdateSuccessResponse:
+      type: object
+      description: |
+        Returned by update.php, archive.php, and unarchive.php - all three
+        share the same update_output.php response handler and therefore
+        only ever return success and count on success (no data array).
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    DeleteSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    ContactRecord:
+      type: object
+      properties:
+        contact_id:
+          type: integer
+          example: 123
+        contact_name:
+          type: string
+          example: Jane Doe
+        contact_title:
+          type: string
+          nullable: true
+          example: Office Manager
+        contact_email:
+          type: string
+          format: email
+          nullable: true
+          example: jane.doe@example.com
+        contact_phone_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        contact_phone:
+          type: string
+          nullable: true
+          example: '5551234567'
+        contact_extension:
+          type: string
+          nullable: true
+          example: '101'
+        contact_mobile_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        contact_mobile:
+          type: string
+          nullable: true
+          example: '5559876543'
+        contact_photo:
+          type: string
+          nullable: true
+          example: ''
+        contact_pin:
+          type: string
+          nullable: true
+          example: null
+        contact_notes:
+          type: string
+          nullable: true
+          example: Primary point of contact
+        contact_primary:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        contact_important:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        contact_billing:
+          type: integer
+          enum: [0, 1]
+          nullable: true
+          example: 0
+        contact_technical:
+          type: integer
+          enum: [0, 1]
+          nullable: true
+          example: 0
+        contact_created_at:
+          type: string
+          format: date-time
+          example: '2026-01-15 09:00:00'
+        contact_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        contact_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        contact_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        contact_location_id:
+          type: integer
+          example: 5
+        contact_vendor_id:
+          type: integer
+          example: 0
+        contact_user_id:
+          type: integer
+          example: 0
+        contact_department:
+          type: string
+          nullable: true
+          example: Operations
+        contact_client_id:
+          type: integer
+          example: 1
+    CreateContactRequest:
+      type: object
+      required:
+        - client_id
+        - contact_name
+        - contact_email
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        contact_name:
+          type: string
+          example: Jane Doe
+        contact_title:
+          type: string
+          nullable: true
+          example: Office Manager
+        contact_department:
+          type: string
+          nullable: true
+          example: Operations
+        contact_email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+        contact_phone:
+          type: string
+          nullable: true
+          description: Non-numeric characters are stripped before storage.
+          example: '5551234567'
+        contact_extension:
+          type: string
+          nullable: true
+          description: Non-numeric characters are stripped before storage.
+          example: '101'
+        contact_mobile:
+          type: string
+          nullable: true
+          description: Non-numeric characters are stripped before storage.
+          example: '5559876543'
+        contact_notes:
+          type: string
+          nullable: true
+          example: Primary point of contact
+        contact_primary:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: |
+            Setting this to 1 unsets contact_primary on all other contacts
+            for the same client.
+          example: 1
+        contact_important:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          example: 1
+        contact_billing:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          example: 0
+        contact_technical:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          example: 0
+        contact_location_id:
+          type: integer
+          default: 0
+          example: 5
+    UpdateContactRequest:
+      type: object
+      required:
+        - client_id
+        - contact_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        contact_id:
+          type: integer
+          example: 123
+        contact_name:
+          type: string
+          example: Jane Doe
+        contact_title:
+          type: string
+          nullable: true
+          example: Office Manager
+        contact_department:
+          type: string
+          nullable: true
+          example: Operations
+        contact_email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+        contact_phone:
+          type: string
+          nullable: true
+          description: Non-numeric characters are stripped before storage.
+          example: '5551234567'
+        contact_extension:
+          type: string
+          nullable: true
+          description: Non-numeric characters are stripped before storage.
+          example: '101'
+        contact_mobile:
+          type: string
+          nullable: true
+          description: Non-numeric characters are stripped before storage.
+          example: '5559876543'
+        contact_notes:
+          type: string
+          nullable: true
+          example: Primary point of contact
+        contact_primary:
+          type: integer
+          enum: [0, 1]
+          description: |
+            Setting this to 1 unsets contact_primary on all other contacts
+            for the same client.
+          example: 1
+        contact_important:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        contact_billing:
+          type: integer
+          enum: [0, 1]
+          example: 0
+        contact_technical:
+          type: integer
+          enum: [0, 1]
+          example: 0
+        contact_location_id:
+          type: integer
+          example: 5
+    ArchiveContactRequest:
+      type: object
+      required:
+        - client_id
+        - contact_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        contact_id:
+          type: integer
+          example: 123
+    UnarchiveContactRequest:
+      type: object
+      required:
+        - client_id
+        - contact_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        contact_id:
+          type: integer
+          example: 123
+    DeleteContactRequest:
+      type: object
+      required:
+        - client_id
+        - contact_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        contact_id:
+          type: integer
+          example: 123
