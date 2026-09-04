@@ -145,7 +145,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The authenticated user cannot read tickets or the requested client scope.
+          description: >-
+            The authenticated user cannot read tickets or the requested client
+            scope.
           content:
             application/json:
               schema:
@@ -196,7 +198,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The authenticated user cannot create tickets or access the target client.
+          description: >-
+            The authenticated user cannot create tickets or access the target
+            client.
           content:
             application/json:
               schema:
@@ -245,7 +249,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The authenticated user cannot update tickets or access the target client.
+          description: >-
+            The authenticated user cannot update tickets or access the target
+            client.
           content:
             application/json:
               schema:
@@ -290,7 +296,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The authenticated user cannot resolve tickets or access the target client.
+          description: >-
+            The authenticated user cannot resolve tickets or access the target
+            client.
           content:
             application/json:
               schema:
@@ -337,7 +345,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The authenticated user cannot close tickets or access the target client.
+          description: >-
+            The authenticated user cannot close tickets or access the target
+            client.
           content:
             application/json:
               schema:
@@ -625,24 +635,36 @@ components:
         ticket_status_id:
           type: integer
           nullable: true
-          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+          description: >-
+            Returned only by the ticket_id lookup through the ticket_statuses
+            join.
         ticket_status_name:
           type: string
           nullable: true
-          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+          description: >-
+            Returned only by the ticket_id lookup through the ticket_statuses
+            join.
         ticket_status_color:
           type: string
           nullable: true
-          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+          description: >-
+            Returned only by the ticket_id lookup through the ticket_statuses
+            join.
         ticket_status_active:
           type: integer
           nullable: true
-          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+          description: >-
+            Returned only by the ticket_id lookup through the ticket_statuses
+            join.
         ticket_status_pauses_sla:
           type: integer
           nullable: true
-          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+          description: >-
+            Returned only by the ticket_id lookup through the ticket_statuses
+            join.
         ticket_status_order:
           type: integer
           nullable: true
-          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+          description: >-
+            Returned only by the ticket_id lookup through the ticket_statuses
+            join.
