@@ -1,0 +1,648 @@
+openapi: 3.0.4
+info:
+  title: Tickets API
+  description: |
+    API for reading, creating, updating, resolving, and closing tickets.
+    Does not send notification e-mails.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create, update,
+    resolve, and close operations. API responses use a success field
+    containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Tickets
+    description: Ticket management operations.
+paths:
+  /tickets/read.php:
+    get:
+      tags:
+        - Tickets
+      summary: Read tickets
+      description: |
+        Retrieves tickets accessible to the authenticated API user.
+
+        Supplying ticket_id retrieves one ticket and includes the matching
+        ticket status fields. Without ticket_id, the endpoint returns a
+        paginated list ordered by ticket_id.
+      operationId: readTickets
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: ticket_id
+          in: query
+          required: false
+          description: Retrieve a single ticket by its ID.
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: client_id
+          in: query
+          required: false
+          description: Optional client ID to scope the read.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of tickets returned for collection queries.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of tickets to skip for collection queries.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: Ticket read result, or a no-results response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                ticketsFound:
+                  summary: Tickets found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - ticket_id: 123
+                        ticket_prefix: TKT-
+                        ticket_number: 42
+                        ticket_source: API
+                        ticket_category: Support
+                        ticket_subject: Production server is unavailable
+                        ticket_details: The production server cannot be reached.
+                        ticket_priority: High
+                        ticket_status: 2
+                        ticket_sla_id: 1
+                        ticket_billable: 0
+                        ticket_schedule: null
+                        ticket_onsite: 0
+                        ticket_vendor_ticket_number: null
+                        ticket_feedback: null
+                        ticket_url_key: abc123
+                        ticket_created_at: '2026-08-28T12:00:00Z'
+                        ticket_updated_at: null
+                        ticket_due_at: null
+                        ticket_resolved_at: null
+                        ticket_archived_at: null
+                        ticket_first_response_at: null
+                        ticket_response_due_at: '2026-08-28T13:00:00Z'
+                        ticket_resolution_due_at: '2026-08-29T12:00:00Z'
+                        ticket_response_sla_met: null
+                        ticket_resolution_sla_met: null
+                        ticket_response_sla_alert_stage: 0
+                        ticket_resolution_sla_alert_stage: 0
+                        ticket_closed_at: null
+                        ticket_created_by: 0
+                        ticket_assigned_to: 15
+                        ticket_closed_by: 0
+                        ticket_vendor_id: 0
+                        ticket_client_id: 1
+                        ticket_contact_id: 25
+                        ticket_location_id: 5
+                        ticket_asset_id: 123
+                        ticket_quote_id: 0
+                        ticket_invoice_id: 0
+                        ticket_project_id: 0
+                        ticket_recurring_ticket_id: 0
+                        ticket_order: 0
+                        ticket_status_id: 2
+                        ticket_status_name: Open
+                        ticket_status_color: '#198754'
+                        ticket_status_active: 1
+                        ticket_status_pauses_sla: 0
+                        ticket_status_order: 2
+                noTicketsFound:
+                  summary: No matching tickets
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user cannot read tickets or the requested client scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /tickets/create.php:
+    post:
+      tags:
+        - Tickets
+      summary: Create a ticket
+      description: Creates a ticket for the supplied client.
+      operationId: createTicket
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketRequest'
+            example:
+              client_id: 1
+              ticket_subject: Production server is unavailable
+              ticket_details: The production server cannot be reached.
+              ticket_priority: High
+              ticket_billable: 0
+              ticket_assigned_to: 15
+              ticket_contact_id: 25
+              ticket_asset_id: 123
+      responses:
+        '200':
+          description: Ticket create result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user cannot create tickets or access the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /tickets/update.php:
+    post:
+      tags:
+        - Tickets
+      summary: Update a ticket
+      description: |
+        Updates an existing ticket in the supplied client. Fields omitted
+        from the request retain their current values.
+      operationId: updateTicket
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTicketRequest'
+            example:
+              client_id: 1
+              ticket_id: 123
+              ticket_subject: Production server restored
+              ticket_priority: Medium
+      responses:
+        '200':
+          description: Ticket update result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user cannot update tickets or access the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /tickets/resolve.php:
+    post:
+      tags:
+        - Tickets
+      summary: Resolve a ticket
+      description: Sets the ticket status to 4 and records the resolution time.
+      operationId: resolveTicket
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketActionRequest'
+            example:
+              client_id: 1
+              ticket_id: 123
+      responses:
+        '200':
+          description: Ticket resolve result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user cannot resolve tickets or access the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /tickets/close.php:
+    post:
+      tags:
+        - Tickets
+      summary: Close a ticket
+      description: |
+        Resolves the ticket first when needed, then sets the ticket status
+        to closed and records the close time.
+      operationId: closeTicket
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketActionRequest'
+            example:
+              client_id: 1
+              ticket_id: 123
+      responses:
+        '200':
+          description: Ticket close result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user cannot close tickets or access the target client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+            - 'False'
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          enum:
+            - 'True'
+            - 'False'
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 123
+    UpdateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    TicketActionRequest:
+      type: object
+      required:
+        - client_id
+        - ticket_id
+      properties:
+        client_id:
+          type: integer
+          minimum: 1
+          example: 1
+        ticket_id:
+          type: integer
+          minimum: 1
+          example: 123
+    CreateTicketRequest:
+      allOf:
+        - $ref: '#/components/schemas/TicketInputFields'
+        - type: object
+          required:
+            - client_id
+            - ticket_subject
+          properties:
+            client_id:
+              type: integer
+              minimum: 1
+              example: 1
+            ticket_subject:
+              type: string
+              example: Production server is unavailable
+    UpdateTicketRequest:
+      allOf:
+        - $ref: '#/components/schemas/TicketInputFields'
+        - type: object
+          required:
+            - client_id
+            - ticket_id
+          properties:
+            client_id:
+              type: integer
+              minimum: 1
+              example: 1
+            ticket_id:
+              type: integer
+              minimum: 1
+              example: 123
+    TicketInputFields:
+      type: object
+      properties:
+        ticket_subject:
+          type: string
+          example: Production server is unavailable
+        ticket_details:
+          type: string
+          example: The production server cannot be reached.
+        ticket_priority:
+          type: string
+          enum:
+            - Low
+            - Medium
+            - High
+            - Urgent
+          default: Medium
+          example: High
+        ticket_billable:
+          type: integer
+          enum:
+            - 0
+            - 1
+          default: 0
+          example: 0
+        ticket_vendor_ticket_id:
+          type: integer
+          example: 4567
+        ticket_vendor_id:
+          type: integer
+          example: 10
+        ticket_assigned_to:
+          type: integer
+          example: 15
+        ticket_contact_id:
+          type: integer
+          example: 25
+        ticket_asset_id:
+          type: integer
+          example: 123
+    TicketRecord:
+      type: object
+      properties:
+        ticket_id:
+          type: integer
+        ticket_prefix:
+          type: string
+          nullable: true
+        ticket_number:
+          type: integer
+        ticket_source:
+          type: string
+          nullable: true
+        ticket_category:
+          type: string
+          nullable: true
+        ticket_subject:
+          type: string
+        ticket_details:
+          type: string
+        ticket_priority:
+          type: string
+          nullable: true
+        ticket_status:
+          type: integer
+        ticket_sla_id:
+          type: integer
+        ticket_billable:
+          type: integer
+        ticket_schedule:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_onsite:
+          type: integer
+        ticket_vendor_ticket_number:
+          type: string
+          nullable: true
+        ticket_feedback:
+          type: string
+          nullable: true
+        ticket_url_key:
+          type: string
+          nullable: true
+        ticket_created_at:
+          type: string
+          format: date-time
+        ticket_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_due_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_first_response_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_response_due_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_resolution_due_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_response_sla_met:
+          type: integer
+          nullable: true
+        ticket_resolution_sla_met:
+          type: integer
+          nullable: true
+        ticket_response_sla_alert_stage:
+          type: integer
+        ticket_resolution_sla_alert_stage:
+          type: integer
+        ticket_closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        ticket_created_by:
+          type: integer
+        ticket_assigned_to:
+          type: integer
+        ticket_closed_by:
+          type: integer
+        ticket_vendor_id:
+          type: integer
+        ticket_client_id:
+          type: integer
+        ticket_contact_id:
+          type: integer
+        ticket_location_id:
+          type: integer
+        ticket_asset_id:
+          type: integer
+        ticket_quote_id:
+          type: integer
+        ticket_invoice_id:
+          type: integer
+        ticket_project_id:
+          type: integer
+        ticket_recurring_ticket_id:
+          type: integer
+          nullable: true
+        ticket_order:
+          type: integer
+        ticket_status_id:
+          type: integer
+          nullable: true
+          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+        ticket_status_name:
+          type: string
+          nullable: true
+          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+        ticket_status_color:
+          type: string
+          nullable: true
+          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+        ticket_status_active:
+          type: integer
+          nullable: true
+          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+        ticket_status_pauses_sla:
+          type: integer
+          nullable: true
+          description: Returned only by the ticket_id lookup through the ticket_statuses join.
+        ticket_status_order:
+          type: integer
+          nullable: true
+          description: Returned only by the ticket_id lookup through the ticket_statuses join.
