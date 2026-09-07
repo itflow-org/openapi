@@ -275,7 +275,9 @@ paths:
       tags:
         - Locations
       summary: Archive a location
-      description: Archives an existing, non-archived location. The primary flag is cleared.
+      description: >-
+        Archives an existing, non-archived location. The primary flag is
+        cleared.
       operationId: archiveLocation
       security:
         - ApiKeyAuth: []
@@ -386,7 +388,9 @@ components:
             success: 'False'
             message: Authentication failed. API key is invalid or has expired.
     WritePermissionDenied:
-      description: The authenticated user cannot perform this location action or access the client.
+      description: >-
+        The authenticated user cannot perform this location action or access the
+        client.
       content:
         application/json:
           schema:
@@ -538,7 +542,9 @@ components:
           example: null
         location_primary:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 1
         location_notes:
           type: string
@@ -546,7 +552,9 @@ components:
           example: Main office location
         location_favorite:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 0
         location_created_at:
           type: string
@@ -619,7 +627,9 @@ components:
           example: Main office location
         location_primary:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           default: 0
           example: 1
     UpdateLocationRequest:
@@ -671,7 +681,9 @@ components:
           example: Main office location
         location_primary:
           type: integer
-          enum: [0, 1]
+          enum:
+            - 0
+            - 1
           example: 1
     LocationActionRequest:
       type: object

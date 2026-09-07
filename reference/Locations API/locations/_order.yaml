@@ -1,0 +1,6 @@
+- readlocations
+- createlocation
+- updatelocation
+- archivelocation
+- unarchivelocation
+- deletelocation
