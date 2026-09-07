@@ -1,0 +1,687 @@
+openapi: 3.0.4
+info:
+  title: Locations API
+  description: |
+    API for reading, creating, updating, archiving, unarchiving, and deleting
+    client locations.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create, update,
+    archive, unarchive, and delete operations.
+    API responses use a success field containing the string "True" or "False".
+
+    Locations must be archived before they can be deleted.
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Locations
+    description: Location management operations
+paths:
+  /locations/read.php:
+    get:
+      tags:
+        - Locations
+      summary: Read locations
+      description: |
+        Retrieves locations accessible to the authenticated API user.
+
+        If location_id is supplied, a single location is retrieved.
+        Otherwise, the endpoint returns a paginated list of locations.
+      operationId: readLocations
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: Optional client ID to scope the read.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: location_id
+          in: query
+          required: false
+          description: Retrieve a single location by its ID.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of records returned. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of records to skip. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                locationsFound:
+                  summary: Locations found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - location_id: 123
+                        location_name: Headquarters
+                        location_description: Main office
+                        location_country: United States
+                        location_address: 100 Main Street
+                        location_city: New York
+                        location_state: NY
+                        location_zip: '10001'
+                        location_phone_country_code: '1'
+                        location_phone: '5551234567'
+                        location_phone_extension: '101'
+                        location_fax_country_code: '1'
+                        location_fax: '5551234568'
+                        location_hours: Monday-Friday 09:00-17:00
+                        location_photo: null
+                        location_primary: 1
+                        location_notes: Main office location
+                        location_favorite: 0
+                        location_created_at: '2026-01-15 09:00:00'
+                        location_updated_at: null
+                        location_archived_at: null
+                        location_accessed_at: null
+                        location_contact_id: 25
+                        location_client_id: 1
+                noLocationsFound:
+                  summary: No matching locations
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: The authenticated user cannot read locations or the client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                resourceDenied:
+                  summary: Resource not mapped
+                  value:
+                    success: 'False'
+                    message: This API resource is not mapped to a permission module.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send GET requests to this endpoint.
+  /locations/create.php:
+    post:
+      tags:
+        - Locations
+      summary: Create a location
+      description: |
+        Creates a new location for a client.
+
+        Setting location_primary to 1 clears the primary flag from the
+        client's other locations.
+      operationId: createLocation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLocationRequest'
+            example:
+              client_id: 1
+              location_name: Headquarters
+              location_description: Main office
+              location_country: United States
+              location_address: 100 Main Street
+              location_city: New York
+              location_state: NY
+              location_zip: '10001'
+              location_hours: Monday-Friday 09:00-17:00
+              location_notes: Main office location
+              location_primary: 1
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                created:
+                  summary: Location created
+                  value:
+                    success: 'True'
+                    count: '1'
+                    data:
+                      - insert_id: 123
+                insertFailed:
+                  summary: Insert failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but insert query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date. Turn on
+                      error logging and look for 'undefined index'.
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /locations/update.php:
+    post:
+      tags:
+        - Locations
+      summary: Update a location
+      description: |
+        Updates an existing, non-archived location for the authenticated client.
+        Requires location_id. Fields omitted from the request retain their
+        current database values.
+      operationId: updateLocation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLocationRequest'
+            example:
+              client_id: 1
+              location_id: 123
+              location_name: Headquarters
+              location_primary: 1
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                updated:
+                  summary: Location updated
+                  value:
+                    success: 'True'
+                    count: 1
+                updateFailed:
+                  summary: Update failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /locations/archive.php:
+    post:
+      tags:
+        - Locations
+      summary: Archive a location
+      description: Archives an existing, non-archived location. The primary flag is cleared.
+      operationId: archiveLocation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationActionRequest'
+            example:
+              client_id: 1
+              location_id: 123
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /locations/unarchive.php:
+    post:
+      tags:
+        - Locations
+      summary: Unarchive a location
+      description: Unarchives an existing archived location.
+      operationId: unarchiveLocation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationActionRequest'
+            example:
+              client_id: 1
+              location_id: 123
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /locations/delete.php:
+    post:
+      tags:
+        - Locations
+      summary: Delete a location
+      description: Permanently deletes an existing archived location.
+      operationId: deleteLocation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationActionRequest'
+            example:
+              client_id: 1
+              location_id: 123
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DeleteSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  responses:
+    AuthenticationFailed:
+      description: Authentication failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: Authentication failed. API key is invalid or has expired.
+    WritePermissionDenied:
+      description: The authenticated user cannot perform this location action or access the client.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: >-
+              The user linked to this API key does not have permission for this
+              action.
+    PostMethodNotAllowed:
+      description: Method not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: Can only send POST requests to this endpoint.
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 123
+    UpdateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    DeleteSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    LocationRecord:
+      type: object
+      properties:
+        location_id:
+          type: integer
+          example: 123
+        location_name:
+          type: string
+          example: Headquarters
+        location_description:
+          type: string
+          nullable: true
+          example: Main office
+        location_country:
+          type: string
+          nullable: true
+          example: United States
+        location_address:
+          type: string
+          nullable: true
+          example: 100 Main Street
+        location_city:
+          type: string
+          nullable: true
+          example: New York
+        location_state:
+          type: string
+          nullable: true
+          example: NY
+        location_zip:
+          type: string
+          nullable: true
+          example: '10001'
+        location_phone_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        location_phone:
+          type: string
+          nullable: true
+          example: '5551234567'
+        location_phone_extension:
+          type: string
+          nullable: true
+          example: '101'
+        location_fax_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        location_fax:
+          type: string
+          nullable: true
+          example: '5551234568'
+        location_hours:
+          type: string
+          nullable: true
+          example: Monday-Friday 09:00-17:00
+        location_photo:
+          type: string
+          nullable: true
+          example: null
+        location_primary:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        location_notes:
+          type: string
+          nullable: true
+          example: Main office location
+        location_favorite:
+          type: integer
+          enum: [0, 1]
+          example: 0
+        location_created_at:
+          type: string
+          format: date-time
+          example: '2026-01-15 09:00:00'
+        location_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        location_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        location_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        location_contact_id:
+          type: integer
+          example: 25
+        location_client_id:
+          type: integer
+          example: 1
+    CreateLocationRequest:
+      type: object
+      required:
+        - client_id
+        - location_name
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        location_name:
+          type: string
+          example: Headquarters
+        location_description:
+          type: string
+          nullable: true
+          example: Main office
+        location_country:
+          type: string
+          nullable: true
+          example: United States
+        location_address:
+          type: string
+          nullable: true
+          example: 100 Main Street
+        location_city:
+          type: string
+          nullable: true
+          example: New York
+        location_state:
+          type: string
+          nullable: true
+          example: NY
+        location_zip:
+          type: string
+          nullable: true
+          example: '10001'
+        location_hours:
+          type: string
+          nullable: true
+          example: Monday-Friday 09:00-17:00
+        location_notes:
+          type: string
+          nullable: true
+          example: Main office location
+        location_primary:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          example: 1
+    UpdateLocationRequest:
+      type: object
+      required:
+        - client_id
+        - location_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        location_id:
+          type: integer
+          example: 123
+        location_name:
+          type: string
+          example: Headquarters
+        location_description:
+          type: string
+          nullable: true
+          example: Main office
+        location_country:
+          type: string
+          nullable: true
+          example: United States
+        location_address:
+          type: string
+          nullable: true
+          example: 100 Main Street
+        location_city:
+          type: string
+          nullable: true
+          example: New York
+        location_state:
+          type: string
+          nullable: true
+          example: NY
+        location_zip:
+          type: string
+          nullable: true
+          example: '10001'
+        location_hours:
+          type: string
+          nullable: true
+          example: Monday-Friday 09:00-17:00
+        location_notes:
+          type: string
+          nullable: true
+          example: Main office location
+        location_primary:
+          type: integer
+          enum: [0, 1]
+          example: 1
+    LocationActionRequest:
+      type: object
+      required:
+        - client_id
+        - location_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        location_id:
+          type: integer
+          example: 123
