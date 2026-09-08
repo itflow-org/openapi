@@ -1,0 +1,510 @@
+openapi: 3.0.4
+info:
+  title: Documents API
+  description: |
+    API for reading, creating, updating, archiving, and unarchiving documents.
+
+    Authentication is performed using an API key. The API uses GET for read
+    operations and POST for create, update, archive, and unarchive operations.
+    API responses use a success field containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Documents
+    description: Document management operations
+paths:
+  /documents/read.php:
+    get:
+      tags:
+        - Documents
+      summary: Read documents
+      description: |
+        Retrieves documents accessible to the authenticated API user.
+
+        If document_id is supplied, the endpoint returns the matching
+        document. Otherwise, it returns all accessible documents.
+      operationId: readDocuments
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: document_id
+          in: query
+          required: false
+          description: Optional document ID to retrieve a single document.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of documents returned for collection queries.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of documents to skip for collection queries.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                documentsFound:
+                  summary: Documents found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - document_id: 1
+                        document_name: Network Documentation
+                        document_description: Internal network reference
+                        document_content: '<p>Network documentation</p>'
+                        document_content_raw: Network Documentation Internal network reference Network documentation
+                        document_client_visible: 1
+                        document_favorite: 0
+                        document_created_at: '2026-01-15 10:30:00'
+                        document_updated_at: null
+                        document_archived_at: null
+                        document_accessed_at: null
+                        document_folder_id: 0
+                        document_created_by: 0
+                        document_updated_by: 0
+                        document_client_id: 1
+                noDocumentsFound:
+                  summary: No matching documents
+                  value:
+                    success: 'False'
+                    message: No resource (for this client and company) with the specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user is not permitted to read documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /documents/create.php:
+    post:
+      tags:
+        - Documents
+      summary: Create a document
+      description: |
+        Creates a document in the authenticated client scope.
+
+        document_name and document_content must be provided and document_content
+        must not be empty. document_content_raw and document_content are stored
+        by the endpoint; document_content_raw is generated from the submitted
+        document fields and is not a request field.
+      operationId: createDocument
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+            example:
+              document_name: Network Documentation
+              document_description: Internal network reference
+              document_content: '<p>Network documentation</p>'
+              document_folder_id: 0
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                created:
+                  summary: Document created
+                  value:
+                    success: 'True'
+                    count: '1'
+                    data:
+                      - insert_id: 1
+                createFailed:
+                  summary: Document creation failed
+                  value:
+                    success: 'False'
+                    message: Auth success but insert query failed, ensure ALL required variables are provided (and aren't duplicates where applicable) and database schema is up-to-date.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user is not permitted to create documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /documents/update.php:
+    post:
+      tags:
+        - Documents
+      summary: Update a document
+      description: |
+        Updates an existing document in the authenticated client scope and
+        stores the previous document content as a document version.
+
+        document_id is required. Any omitted editable field is taken from the
+        current document: document_name, document_description,
+        document_content, or document_folder_id.
+      operationId: updateDocument
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UpdateDocumentRequest'
+            example:
+              document_id: 1
+              document_name: Network Documentation
+              document_description: Updated internal network reference
+              document_content: '<p>Updated network documentation</p>'
+              document_folder_id: 0
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                updated:
+                  summary: Document updated
+                  value:
+                    success: 'True'
+                    count: 1
+                updateFailed:
+                  summary: Document update failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user is not permitted to update documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /documents/archive.php:
+    post:
+      tags:
+        - Documents
+      summary: Archive a document
+      description: Archives an existing, non-archived document by setting document_archived_at.
+      operationId: archiveDocument
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DocumentIdRequest'
+            example:
+              document_id: 1
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponse'
+              examples:
+                archived:
+                  summary: Document archived
+                  value:
+                    success: 'True'
+                    count: 1
+                archiveFailed:
+                  summary: Document archive failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user is not permitted to archive documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /documents/unarchive.php:
+    post:
+      tags:
+        - Documents
+      summary: Unarchive a document
+      description: Restores an archived document by clearing document_archived_at.
+      operationId: unarchiveDocument
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DocumentIdRequest'
+            example:
+              document_id: 1
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponse'
+              examples:
+                unarchived:
+                  summary: Document unarchived
+                  value:
+                    success: 'True'
+                    count: 1
+                unarchiveFailed:
+                  summary: Document unarchive failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user is not permitted to unarchive documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+        count:
+          type: integer
+          nullable: true
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 1
+    UpdateResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    UpdateSuccessResponse:
+      $ref: '#/components/schemas/UpdateResponse'
+    DocumentRecord:
+      type: object
+      properties:
+        document_id:
+          type: integer
+        document_name:
+          type: string
+        document_description:
+          type: string
+          nullable: true
+        document_content:
+          type: string
+        document_content_raw:
+          type: string
+        document_client_visible:
+          type: integer
+        document_favorite:
+          type: integer
+        document_created_at:
+          type: string
+          format: date-time
+        document_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        document_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        document_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+        document_folder_id:
+          type: integer
+        document_created_by:
+          type: integer
+        document_updated_by:
+          type: integer
+        document_client_id:
+          type: integer
+    CreateDocumentRequest:
+      type: object
+      required:
+        - document_name
+        - document_content
+      properties:
+        document_name:
+          type: string
+        document_description:
+          type: string
+          nullable: true
+        document_content:
+          type: string
+          description: HTML or other document content accepted by the endpoint.
+        document_folder_id:
+          type: integer
+          default: 0
+    UpdateDocumentRequest:
+      type: object
+      required:
+        - document_id
+      properties:
+        document_id:
+          type: integer
+          minimum: 1
+        document_name:
+          type: string
+        document_description:
+          type: string
+          nullable: true
+        document_content:
+          type: string
+        document_folder_id:
+          type: integer
+    DocumentIdRequest:
+      type: object
+      required:
+        - document_id
+      properties:
+        document_id:
+          type: integer
+          minimum: 1
