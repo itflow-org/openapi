@@ -72,10 +72,8 @@ paths:
                       - document_id: 1
                         document_name: Network Documentation
                         document_description: Internal network reference
-                        document_content: <p>Network documentation</p>
-                        document_content_raw: >-
-                          Network Documentation Internal network reference
-                          Network documentation
+                        document_content: '<p>Network documentation</p>'
+                        document_content_raw: Network Documentation Internal network reference Network documentation
                         document_client_visible: 1
                         document_favorite: 0
                         document_created_at: '2026-01-15 10:30:00'
@@ -90,9 +88,7 @@ paths:
                   summary: No matching documents
                   value:
                     success: 'False'
-                    message: >-
-                      No resource (for this client and company) with the
-                      specified parameter(s).
+                    message: No resource (for this client and company) with the specified parameter(s).
         '401':
           description: Authentication failed.
           content:
@@ -129,13 +125,13 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               $ref: '#/components/schemas/CreateDocumentRequest'
             example:
               document_name: Network Documentation
               document_description: Internal network reference
-              document_content: <p>Network documentation</p>
+              document_content: '<p>Network documentation</p>'
               document_folder_id: 0
       responses:
         '200':
@@ -158,10 +154,7 @@ paths:
                   summary: Document creation failed
                   value:
                     success: 'False'
-                    message: >-
-                      Auth success but insert query failed, ensure ALL required
-                      variables are provided (and aren't duplicates where
-                      applicable) and database schema is up-to-date.
+                    message: Auth success but insert query failed, ensure ALL required variables are provided (and aren't duplicates where applicable) and database schema is up-to-date.
         '401':
           description: Authentication failed.
           content:
@@ -198,14 +191,14 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               $ref: '#/components/schemas/UpdateDocumentRequest'
             example:
               document_id: 1
               document_name: Network Documentation
               document_description: Updated internal network reference
-              document_content: <p>Updated network documentation</p>
+              document_content: '<p>Updated network documentation</p>'
               document_folder_id: 0
       responses:
         '200':
@@ -214,7 +207,7 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/UpdateResponse'
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
                   - $ref: '#/components/schemas/ErrorResponse'
               examples:
                 updated:
@@ -255,16 +248,14 @@ paths:
       tags:
         - Documents
       summary: Archive a document
-      description: >-
-        Archives an existing, non-archived document by setting
-        document_archived_at.
+      description: Archives an existing, non-archived document by setting document_archived_at.
       operationId: archiveDocument
       security:
         - ApiKeyAuth: []
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               $ref: '#/components/schemas/DocumentIdRequest'
             example:
@@ -322,7 +313,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               $ref: '#/components/schemas/DocumentIdRequest'
             example:
