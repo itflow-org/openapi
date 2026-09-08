@@ -133,6 +133,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateDocumentRequest'
             example:
+              client_id: 1
               document_name: Network Documentation
               document_description: Internal network reference
               document_content: <p>Network documentation</p>
@@ -202,6 +203,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateDocumentRequest'
             example:
+              client_id: 1
               document_id: 1
               document_name: Network Documentation
               document_description: Updated internal network reference
@@ -268,6 +270,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DocumentIdRequest'
             example:
+              client_id: 1
               document_id: 1
       responses:
         '200':
@@ -326,6 +329,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DocumentIdRequest'
             example:
+              client_id: 1
               document_id: 1
       responses:
         '200':
@@ -478,9 +482,13 @@ components:
     CreateDocumentRequest:
       type: object
       required:
+        - client_id
         - document_name
         - document_content
       properties:
+        client_id:
+          type: integer
+          minimum: 1
         document_name:
           type: string
         document_description:
@@ -495,8 +503,12 @@ components:
     UpdateDocumentRequest:
       type: object
       required:
+        - client_id
         - document_id
       properties:
+        client_id:
+          type: integer
+          minimum: 1
         document_id:
           type: integer
           minimum: 1
@@ -512,8 +524,12 @@ components:
     DocumentIdRequest:
       type: object
       required:
+        - client_id
         - document_id
       properties:
+        client_id:
+          type: integer
+          minimum: 1
         document_id:
           type: integer
           minimum: 1
