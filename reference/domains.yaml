@@ -64,6 +64,135 @@ paths:
           $ref: '#/components/responses/MethodNotAllowed'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /domains/create.php:
+    post:
+      tags:
+        - Domains
+      summary: Create a domain record
+      description: |
+        Creates a domain record for the specified client.
+
+        Expiry, DNS, TXT, and WHOIS fields are populated by the server from
+        the domain name. They cannot be supplied in the request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainCreateRequest'
+      responses:
+        '200':
+          description: Domain create result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ApiErrorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /domains/update.php:
+    post:
+      tags:
+        - Domains
+      summary: Update a domain record
+      description: |
+        Updates an existing domain record for the specified client.
+
+        Any editable field omitted from the request keeps its current value.
+        Expiry, DNS, TXT, and WHOIS fields are populated by the server from
+        the domain name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainUpdateRequest'
+      responses:
+        '200':
+          description: Domain update result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ApiErrorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /domains/archive.php:
+    post:
+      tags:
+        - Domains
+      summary: Archive a domain record
+      description: Archives an existing domain record for the specified client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainActionRequest'
+      responses:
+        '200':
+          description: Domain archive result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /domains/unarchive.php:
+    post:
+      tags:
+        - Domains
+      summary: Unarchive a domain record
+      description: Unarchives an existing domain record for the specified client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainActionRequest'
+      responses:
+        '200':
+          description: Domain unarchive result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -226,6 +355,140 @@ components:
         domain_client_id:
           type: integer
           example: 10
+    DomainCreateRequest:
+      type: object
+      required:
+        - client_id
+        - domain_name
+      properties:
+        client_id:
+          type: integer
+          minimum: 1
+          description: Client ID stored as domain_client_id.
+          example: 10
+        domain_name:
+          type: string
+          maxLength: 200
+          example: example.com
+        domain_description:
+          type: string
+          nullable: true
+          example: Primary website domain
+        domain_expire:
+          type: string
+          format: date
+          nullable: true
+          description: Optional expiry override; otherwise retrieved from WHOIS.
+          example: '2026-12-31'
+        domain_notes:
+          type: string
+          nullable: true
+          example: Registrar renewal due in 30 days
+        domain_registrar:
+          type: integer
+          example: 2
+        domain_webhost:
+          type: integer
+          example: 5
+        domain_dnshost:
+          type: integer
+          example: 3
+        domain_mailhost:
+          type: integer
+          example: 4
+    DomainUpdateRequest:
+      type: object
+      required:
+        - client_id
+        - domain_id
+      properties:
+        client_id:
+          type: integer
+          minimum: 1
+          description: Client ID stored as domain_client_id.
+          example: 10
+        domain_id:
+          type: integer
+          minimum: 1
+          example: 7
+        domain_name:
+          type: string
+          maxLength: 200
+          example: example.com
+        domain_description:
+          type: string
+          nullable: true
+          example: Primary website domain
+        domain_expire:
+          type: string
+          format: date
+          nullable: true
+          description: Optional expiry override; otherwise retrieved from WHOIS.
+          example: '2026-12-31'
+        domain_notes:
+          type: string
+          nullable: true
+          example: Registrar renewal due in 30 days
+        domain_registrar:
+          type: integer
+          example: 2
+        domain_webhost:
+          type: integer
+          example: 5
+        domain_dnshost:
+          type: integer
+          example: 3
+        domain_mailhost:
+          type: integer
+          example: 4
+    DomainActionRequest:
+      type: object
+      required:
+        - client_id
+        - domain_id
+      properties:
+        client_id:
+          type: integer
+          minimum: 1
+          description: Client ID used to scope the domain action.
+          example: 10
+        domain_id:
+          type: integer
+          minimum: 1
+          example: 7
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 7
+    UpdateResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+    UpdateSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/UpdateResponse'
     DomainReadResponse:
       type: object
       properties:
