@@ -1,0 +1,5 @@
+- readvendors
+- createvendor
+- updatevendor
+- archivevendor
+- unarchivevendor
