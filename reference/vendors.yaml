@@ -1,0 +1,575 @@
+openapi: 3.0.4
+info:
+  title: Vendors API
+  description: |
+    API for reading and managing vendors.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create, update,
+    archive, and unarchive operations. API responses use a success field
+    containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Vendors
+    description: Vendor management operations.
+security:
+  - ApiKeyAuth: []
+paths:
+  /vendors/read.php:
+    get:
+      tags:
+        - Vendors
+      summary: Read vendors
+      description: |
+        Retrieves active vendors accessible to the authenticated API user.
+
+        Supplying vendor_id retrieves one vendor. Without vendor_id, the
+        endpoint returns a paginated list.
+      operationId: readVendors
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: Optional client ID to scope the read.
+          schema:
+            type: integer
+            minimum: 0
+          example: 1
+        - name: vendor_id
+          in: query
+          required: false
+          description: Retrieve a vendor by its numeric ID.
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of vendors returned for collection queries.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of vendors to skip for collection queries.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: Vendor read result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/VendorReadResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                vendorsFound:
+                  summary: Vendors found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - vendor_id: 123
+                        vendor_name: Example Vendor
+                        vendor_description: Primary vendor
+                        vendor_contact_name: Vendor Contact
+                        vendor_phone_country_code: '1'
+                        vendor_phone: '5551234567'
+                        vendor_extension: '100'
+                        vendor_email: contact@example.com
+                        vendor_website: example.com
+                        vendor_hours: 09:00-17:00
+                        vendor_sla: Business day
+                        vendor_code: VENDOR-001
+                        vendor_account_number: ACCOUNT-001
+                        vendor_notes: Vendor notes
+                        vendor_favorite: 0
+                        vendor_created_at: '2026-08-01 12:00:00'
+                        vendor_updated_at: null
+                        vendor_archived_at: null
+                        vendor_accessed_at: null
+                        vendor_client_id: 1
+                        vendor_template_id: 0
+                noVendorsFound:
+                  summary: No vendors found
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /vendors/create.php:
+    post:
+      tags:
+        - Vendors
+      summary: Create a vendor
+      description: Creates a new vendor for the specified client.
+      operationId: createVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVendorRequest'
+            example:
+              client_id: 1
+              vendor_name: Example Vendor
+              vendor_description: Primary vendor
+              vendor_contact_name: Vendor Contact
+              vendor_phone_country_code: '1'
+              vendor_phone: '5551234567'
+              vendor_extension: '100'
+              vendor_email: contact@example.com
+              vendor_website: https://example.com
+              vendor_hours: 09:00-17:00
+              vendor_sla: Business day
+              vendor_code: VENDOR-001
+              vendor_account_number: ACCOUNT-001
+              vendor_notes: Vendor notes
+      responses:
+        '200':
+          description: Vendor create result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /vendors/update.php:
+    post:
+      tags:
+        - Vendors
+      summary: Update a vendor
+      description: |
+        Updates an active vendor for the specified client.
+
+        Requires vendor_id. Any editable vendor field omitted from the
+        request is treated as its current database value.
+      operationId: updateVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorRequest'
+            example:
+              client_id: 1
+              vendor_id: 123
+              vendor_name: Example Vendor
+              vendor_description: Updated vendor description
+      responses:
+        '200':
+          description: Vendor update result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /vendors/archive.php:
+    post:
+      tags:
+        - Vendors
+      summary: Archive a vendor
+      description: Archives an active vendor for the specified client.
+      operationId: archiveVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorActionRequest'
+            example:
+              client_id: 1
+              vendor_id: 123
+      responses:
+        '200':
+          description: Vendor archive result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /vendors/unarchive.php:
+    post:
+      tags:
+        - Vendors
+      summary: Unarchive a vendor
+      description: Unarchives an archived vendor for the specified client.
+      operationId: unarchiveVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorActionRequest'
+            example:
+              client_id: 1
+              vendor_id: 123
+      responses:
+        '200':
+          description: Vendor unarchive result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  responses:
+    Unauthorized:
+      description: Invalid or expired API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: The API key is valid but the request is not permitted.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    MethodNotAllowed:
+      description: The HTTP method is not allowed for this endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    VendorReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 123
+    UpdateResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+    VendorRecord:
+      type: object
+      properties:
+        vendor_id:
+          type: integer
+          example: 123
+        vendor_name:
+          type: string
+          example: Example Vendor
+        vendor_description:
+          type: string
+          nullable: true
+          example: Primary vendor
+        vendor_contact_name:
+          type: string
+          nullable: true
+          example: Vendor Contact
+        vendor_phone_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        vendor_phone:
+          type: string
+          nullable: true
+          example: '5551234567'
+        vendor_extension:
+          type: string
+          nullable: true
+          example: '100'
+        vendor_email:
+          type: string
+          nullable: true
+          example: contact@example.com
+        vendor_website:
+          type: string
+          nullable: true
+          example: example.com
+        vendor_hours:
+          type: string
+          nullable: true
+          example: 09:00-17:00
+        vendor_sla:
+          type: string
+          nullable: true
+          example: Business day
+        vendor_code:
+          type: string
+          nullable: true
+          example: VENDOR-001
+        vendor_account_number:
+          type: string
+          nullable: true
+          example: ACCOUNT-001
+        vendor_notes:
+          type: string
+          nullable: true
+          example: Vendor notes
+        vendor_favorite:
+          type: integer
+          enum:
+            - 0
+            - 1
+          example: 0
+        vendor_created_at:
+          type: string
+          format: date-time
+          example: '2026-08-01 12:00:00'
+        vendor_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        vendor_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        vendor_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        vendor_client_id:
+          type: integer
+          example: 1
+        vendor_template_id:
+          type: integer
+          example: 0
+    CreateVendorRequest:
+      type: object
+      required:
+        - client_id
+        - vendor_name
+      properties:
+        client_id:
+          type: integer
+          minimum: 0
+          example: 1
+        vendor_name:
+          type: string
+          example: Example Vendor
+        vendor_description:
+          type: string
+          nullable: true
+          example: Primary vendor
+        vendor_contact_name:
+          type: string
+          nullable: true
+          example: Vendor Contact
+        vendor_phone_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        vendor_phone:
+          type: string
+          nullable: true
+          example: '5551234567'
+        vendor_extension:
+          type: string
+          nullable: true
+          example: '100'
+        vendor_email:
+          type: string
+          nullable: true
+          example: contact@example.com
+        vendor_website:
+          type: string
+          nullable: true
+          example: https://example.com
+        vendor_hours:
+          type: string
+          nullable: true
+          example: 09:00-17:00
+        vendor_sla:
+          type: string
+          nullable: true
+          example: Business day
+        vendor_code:
+          type: string
+          nullable: true
+          example: VENDOR-001
+        vendor_account_number:
+          type: string
+          nullable: true
+          example: ACCOUNT-001
+        vendor_notes:
+          type: string
+          nullable: true
+          example: Vendor notes
+    UpdateVendorRequest:
+      type: object
+      required:
+        - client_id
+        - vendor_id
+      properties:
+        client_id:
+          type: integer
+          minimum: 0
+          example: 1
+        vendor_id:
+          type: integer
+          minimum: 1
+          example: 123
+        vendor_name:
+          type: string
+          example: Example Vendor
+        vendor_description:
+          type: string
+          nullable: true
+          example: Updated vendor description
+        vendor_contact_name:
+          type: string
+          nullable: true
+          example: Vendor Contact
+        vendor_phone_country_code:
+          type: string
+          nullable: true
+          example: '1'
+        vendor_phone:
+          type: string
+          nullable: true
+          example: '5551234567'
+        vendor_extension:
+          type: string
+          nullable: true
+          example: '100'
+        vendor_email:
+          type: string
+          nullable: true
+          example: contact@example.com
+        vendor_website:
+          type: string
+          nullable: true
+          example: https://example.com
+        vendor_hours:
+          type: string
+          nullable: true
+          example: 09:00-17:00
+        vendor_sla:
+          type: string
+          nullable: true
+          example: Business day
+        vendor_code:
+          type: string
+          nullable: true
+          example: VENDOR-001
+        vendor_account_number:
+          type: string
+          nullable: true
+          example: ACCOUNT-001
+        vendor_notes:
+          type: string
+          nullable: true
+          example: Vendor notes
+    VendorActionRequest:
+      type: object
+      required:
+        - client_id
+        - vendor_id
+      properties:
+        client_id:
+          type: integer
+          minimum: 0
+          example: 1
+        vendor_id:
+          type: integer
+          minimum: 1
+          example: 123
