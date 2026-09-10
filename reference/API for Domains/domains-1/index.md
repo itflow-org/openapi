@@ -1,5 +1,5 @@
 ---
 title: Domains
-excerpt: Domain records and domain retrieval operations.
+excerpt: Read and manage domain records.
 hidden: false
 ---

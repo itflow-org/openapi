@@ -8,7 +8,7 @@ servers:
     description: Development API server - api_key is 'develop'
 tags:
   - name: Domains
-    description: Domain records and domain retrieval operations.
+    description: Read and manage domain records.
 security:
   - ApiKeyAuth: []
 paths:
