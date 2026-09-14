@@ -1,0 +1,611 @@
+openapi: 3.0.4
+info:
+  title: Networks API
+  description: |
+    API for reading, creating, updating, archiving, and unarchiving
+    client networks.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations and POST for create, update,
+    archive, and unarchive operations.
+    API responses use a success field containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Networks
+    description: Network management operations
+paths:
+  /networks/read.php:
+    get:
+      tags:
+        - Networks
+      summary: Read networks
+      description: |
+        Retrieves networks accessible to the authenticated API user.
+
+        If network_id is supplied, a single network is retrieved.
+        If network_name is supplied, networks matching the exact name are
+        retrieved. Otherwise, the endpoint returns a paginated list of
+        networks.
+      operationId: readNetworks
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          description: Optional client ID to scope the read.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: network_id
+          in: query
+          required: false
+          description: Retrieve a single network by its ID.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: network_name
+          in: query
+          required: false
+          description: Retrieve networks matching the exact network name.
+          schema:
+            type: string
+          example: Office LAN
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of records returned. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of records to skip. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                networksFound:
+                  summary: Networks found
+                  value:
+                    success: 'True'
+                    count: 1
+                    data:
+                      - network_id: 123
+                        network_name: Office LAN
+                        network_description: Main office network
+                        network_vlan: 10
+                        network: 192.168.1.0/24
+                        network_subnet: null
+                        network_gateway: 192.168.1.1
+                        network_primary_dns: 8.8.8.8
+                        network_secondary_dns: 8.8.4.4
+                        network_dhcp_range: 192.168.1.100-192.168.1.200
+                        network_notes: null
+                        network_favorite: 0
+                        network_created_at: '2026-01-15 09:00:00'
+                        network_updated_at: null
+                        network_archived_at: null
+                        network_accessed_at: null
+                        network_location_id: 5
+                        network_client_id: 1
+                noNetworksFound:
+                  summary: No matching networks
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Authentication failed. API key is invalid or has expired.
+        '403':
+          description: The authenticated user cannot read networks or the client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                permissionDenied:
+                  summary: Insufficient permission
+                  value:
+                    success: 'False'
+                    message: >-
+                      The user linked to this API key does not have permission
+                      for this action.
+                resourceDenied:
+                  summary: Resource not mapped
+                  value:
+                    success: 'False'
+                    message: This API resource is not mapped to a permission module.
+        '405':
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: 'False'
+                message: Can only send GET requests to this endpoint.
+  /networks/create.php:
+    post:
+      tags:
+        - Networks
+      summary: Create a network
+      description: Creates a new network for a client.
+      operationId: createNetwork
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNetworkRequest'
+            example:
+              client_id: 1
+              network_name: Office LAN
+              network_description: Main office network
+              network_vlan: 10
+              network: 192.168.1.0/24
+              network_gateway: 192.168.1.1
+              network_primary_dns: 8.8.8.8
+              network_secondary_dns: 8.8.4.4
+              network_dhcp_range: 192.168.1.100-192.168.1.200
+              network_notes: null
+              network_location_id: 5
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CreateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                created:
+                  summary: Network created
+                  value:
+                    success: 'True'
+                    count: '1'
+                    data:
+                      - insert_id: 123
+                insertFailed:
+                  summary: Insert failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but insert query failed, ensure ALL required
+                      variables are provided (and aren't duplicates where
+                      applicable) and database schema is up-to-date. Turn on
+                      error logging and look for 'undefined index'.
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /networks/update.php:
+    post:
+      tags:
+        - Networks
+      summary: Update a network
+      description: |
+        Updates an existing, non-archived network for the authenticated client.
+        Requires network_id. Fields omitted from the request retain their
+        current database values.
+      operationId: updateNetwork
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNetworkRequest'
+            example:
+              client_id: 1
+              network_id: 123
+              network_name: Office LAN
+              network_gateway: 192.168.1.1
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                updated:
+                  summary: Network updated
+                  value:
+                    success: 'True'
+                    count: 1
+                updateFailed:
+                  summary: Update failed
+                  value:
+                    success: 'False'
+                    message: >-
+                      Auth success but update query failed/returned no results.
+                      Ensure ALL required variables are provided and database
+                      schema is up-to-date. Most likely cause: non-existent
+                      module ID (i.e. bad contact ID/ticket ID/etc) or no rows
+                      changed.
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /networks/archive.php:
+    post:
+      tags:
+        - Networks
+      summary: Archive a network
+      description: Archives an existing, non-archived network.
+      operationId: archiveNetwork
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NetworkActionRequest'
+            example:
+              client_id: 1
+              network_id: 123
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+  /networks/unarchive.php:
+    post:
+      tags:
+        - Networks
+      summary: Unarchive a network
+      description: Unarchives an existing archived network.
+      operationId: unarchiveNetwork
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NetworkActionRequest'
+            example:
+              client_id: 1
+              network_id: 123
+      responses:
+        '200':
+          description: The request was processed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UpdateSuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/WritePermissionDenied'
+        '405':
+          $ref: '#/components/responses/PostMethodNotAllowed'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  responses:
+    AuthenticationFailed:
+      description: Authentication failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: Authentication failed. API key is invalid or has expired.
+    WritePermissionDenied:
+      description: >-
+        The authenticated user cannot perform this network action or access the
+        client.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: >-
+              The user linked to this API key does not have permission for this
+              action.
+    PostMethodNotAllowed:
+      description: Method not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: Can only send POST requests to this endpoint.
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkRecord'
+    CreateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: string
+          example: '1'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              insert_id:
+                type: integer
+                example: 123
+    UpdateSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+    NetworkRecord:
+      type: object
+      properties:
+        network_id:
+          type: integer
+          example: 123
+        network_name:
+          type: string
+          example: Office LAN
+        network_description:
+          type: string
+          nullable: true
+          example: Main office network
+        network_vlan:
+          type: integer
+          nullable: true
+          example: 10
+        network:
+          type: string
+          example: 192.168.1.0/24
+        network_subnet:
+          type: string
+          nullable: true
+          example: null
+        network_gateway:
+          type: string
+          example: 192.168.1.1
+        network_primary_dns:
+          type: string
+          nullable: true
+          example: 8.8.8.8
+        network_secondary_dns:
+          type: string
+          nullable: true
+          example: 8.8.4.4
+        network_dhcp_range:
+          type: string
+          nullable: true
+          example: 192.168.1.100-192.168.1.200
+        network_notes:
+          type: string
+          nullable: true
+          example: null
+        network_favorite:
+          type: integer
+          example: 0
+        network_created_at:
+          type: string
+          format: date-time
+          example: '2026-01-15 09:00:00'
+        network_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        network_archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        network_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        network_location_id:
+          type: integer
+          example: 5
+        network_client_id:
+          type: integer
+          example: 1
+    CreateNetworkRequest:
+      type: object
+      required:
+        - client_id
+        - network_name
+        - network
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        network_name:
+          type: string
+          example: Office LAN
+        network_description:
+          type: string
+          nullable: true
+          example: Main office network
+        network_vlan:
+          type: integer
+          example: 10
+        network:
+          type: string
+          example: 192.168.1.0/24
+        network_gateway:
+          type: string
+          nullable: true
+          example: 192.168.1.1
+        network_primary_dns:
+          type: string
+          nullable: true
+          example: 8.8.8.8
+        network_secondary_dns:
+          type: string
+          nullable: true
+          example: 8.8.4.4
+        network_dhcp_range:
+          type: string
+          nullable: true
+          example: 192.168.1.100-192.168.1.200
+        network_notes:
+          type: string
+          nullable: true
+          example: null
+        network_location_id:
+          type: integer
+          example: 5
+    UpdateNetworkRequest:
+      type: object
+      required:
+        - client_id
+        - network_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        network_id:
+          type: integer
+          example: 123
+        network_name:
+          type: string
+          example: Office LAN
+        network_description:
+          type: string
+          nullable: true
+          example: Main office network
+        network_vlan:
+          type: integer
+          example: 10
+        network:
+          type: string
+          example: 192.168.1.0/24
+        network_gateway:
+          type: string
+          nullable: true
+          example: 192.168.1.1
+        network_primary_dns:
+          type: string
+          nullable: true
+          example: 8.8.8.8
+        network_secondary_dns:
+          type: string
+          nullable: true
+          example: 8.8.4.4
+        network_dhcp_range:
+          type: string
+          nullable: true
+          example: 192.168.1.100-192.168.1.200
+        network_notes:
+          type: string
+          nullable: true
+          example: null
+        network_location_id:
+          type: integer
+          example: 5
+    NetworkActionRequest:
+      type: object
+      required:
+        - client_id
+        - network_id
+      properties:
+        client_id:
+          type: integer
+          example: 1
+        network_id:
+          type: integer
+          example: 123
