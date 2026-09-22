@@ -1,0 +1,232 @@
+openapi: 3.0.4
+info:
+  title: Technicians API
+  description: |
+    API for reading technician time totals grouped by ticket.
+
+    Authentication is performed using an API key associated with an
+    active user. The user's RBAC permissions and client access are
+    enforced server-side.
+
+    The API uses GET for read operations. API responses use a success
+    field containing the string "True" or "False".
+  version: 1.0.0
+servers:
+  - url: https://develop.dev.itflow.org/api/v1
+    description: Development API server - api_key is 'develop'
+tags:
+  - name: Technicians
+    description: Technician time reporting operations.
+paths:
+  /technicians/time.php:
+    get:
+      tags:
+        - Technicians
+      summary: Read technician time worked
+      description: |
+        Retrieves ticket-level time totals for technicians across the
+        selected date range.
+
+        The endpoint aggregates ticket_replies.ticket_reply_time_worked
+        by ticket and technician, returning the total time logged for each
+        matching ticket assignment. The result is ordered by client, ticket,
+        and technician name.
+      operationId: readTechnicianTime
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: false
+          description: Filter ticket reply timestamps to the given year.
+          schema:
+            type: integer
+            minimum: 1
+          example: 2026
+        - name: month
+          in: query
+          required: false
+          description: Filter ticket reply timestamps to the given month (1-12).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          example: 8
+        - name: technician_id
+          in: query
+          required: false
+          description: Restrict results to a specific technician user ID.
+          schema:
+            type: integer
+            minimum: 1
+          example: 42
+        - name: client_id
+          in: query
+          required: false
+          description: Optional client ID to scope the read to a specific client.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of records returned. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+          example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Number of records to skip. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        '200':
+          description: Request processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
+              examples:
+                timeEntriesFound:
+                  summary: Time entries found
+                  value:
+                    success: 'True'
+                    count: 2
+                    data:
+                      - ticket_id: 123
+                        ticket_number: TKT-42
+                        ticket_subject: Production server is unavailable
+                        client_id: 1
+                        company: Acme Corp
+                        technician_id: 15
+                        technician: Jane Smith
+                        time_worked: '02:30:00'
+                      - ticket_id: 456
+                        ticket_number: TKT-57
+                        ticket_subject: VPN access issue
+                        client_id: 1
+                        company: Acme Corp
+                        technician_id: 15
+                        technician: Jane Smith
+                        time_worked: '01:15:00'
+                noTimeEntriesFound:
+                  summary: No matching time entries
+                  value:
+                    success: 'False'
+                    message: >-
+                      No resource (for this client and company) with the
+                      specified parameter(s).
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/ReadPermissionDenied'
+        '405':
+          $ref: '#/components/responses/GetMethodNotAllowed'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: api_key
+  responses:
+    AuthenticationFailed:
+      description: Authentication failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: Authentication failed. API key is invalid or has expired.
+    ReadPermissionDenied:
+      description: >-
+        The authenticated user cannot read technician time or access the
+        relevant client scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: >-
+              The user linked to this API key does not have permission for this
+              action.
+    GetMethodNotAllowed:
+      description: Method not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: 'False'
+            message: Can only send GET requests to this endpoint.
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'False'
+        message:
+          type: string
+          example: Authentication failed. API key is invalid or has expired.
+        count:
+          type: integer
+          nullable: true
+          example: null
+        data:
+          type: array
+          nullable: true
+          items: {}
+    ReadResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          example: 'True'
+        count:
+          type: integer
+          example: 1
+        message:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TechnicianTimeRecord'
+    TechnicianTimeRecord:
+      type: object
+      properties:
+        ticket_id:
+          type: integer
+          example: 123
+        ticket_number:
+          type: string
+          example: TKT-42
+        ticket_subject:
+          type: string
+          example: Production server is unavailable
+        client_id:
+          type: integer
+          example: 1
+        company:
+          type: string
+          example: Acme Corp
+        technician_id:
+          type: integer
+          example: 15
+        technician:
+          type: string
+          example: Jane Smith
+        time_worked:
+          type: string
+          format: time
+          example: '02:30:00'
